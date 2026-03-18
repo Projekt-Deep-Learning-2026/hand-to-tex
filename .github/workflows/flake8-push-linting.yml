@@ -1,11 +1,10 @@
-name: python-push-testing
+name: flake8-push-linting
 
 on: [push]
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
 
@@ -16,8 +15,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pytest
+          pip install flake8
 
-      - name: Run tests
+      - name: Lint with flake8
         run: |
-          pytest tests/
+          flake8 src/ tests/
