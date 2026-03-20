@@ -4,4 +4,6 @@ version = "0.1.0"
 description = "Model to convert handwritten math text into latex format"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "matplotlib>=3.10.8",
+]
