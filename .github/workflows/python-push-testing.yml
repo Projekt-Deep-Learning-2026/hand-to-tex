@@ -9,15 +9,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install dependencies
         run: |
-          pip install pytest
+          uv sync
+          uv pip install pytest
 
       - name: Run tests
         run: |
-          pytest tests/
+          uv run pytest tests/

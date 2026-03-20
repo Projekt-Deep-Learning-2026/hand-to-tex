@@ -1,0 +1,3 @@
+# avoid conflicts when merging.
+# call `uv lock` after merge to update dependencies
+uv.lock merge=ours
