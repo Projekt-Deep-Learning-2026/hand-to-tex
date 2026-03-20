@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ink xmlns="http://www.w3.org/2003/InkML">
+    <annotation type="sampleId">test_001</annotation>
+    <annotation type="splitTagOriginal">train</annotation>
+    <annotation type="label">x + y</annotation>
+    <annotation type="normalizedLabel">x + y</annotation>
+    <trace>10.0 20.0 0.0, 15.0 25.0 1.0, 20.0 30.0 2.0</trace>
+    <trace>50.0 20.0 3.0, 55.0 25.0 4.0</trace>
+</ink>
