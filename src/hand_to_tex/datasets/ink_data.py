@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, TypeAlias
@@ -46,7 +47,7 @@ class InkData:
     }
 
     @staticmethod
-    def load(path: Path | str):
+    def load(path: Path | str) -> InkData:
         """Load an InkML file and build an `InkData` object.
 
         Parameters
