@@ -17,19 +17,29 @@ Traces:     TypeAlias = list[list[TracePoint]]
 
 @dataclass
 class InkData:
-    """
-    Representation of a single InkML sample.
+    """Representation of a single InkML sample.
 
-    Fields:
-    - tag: data split (`train`, `test`, `valid`, `symbols`, `synthetic`)
-    - sample_id: sample identifier
-    - tex_raw: raw LaTeX label
-    - tex_norm: normalized LaTeX label
-    - traces: list of strokes; each stroke is a list of `(x, y, t)` points
+    Stores metadata and stroke data parsed from an InkML file.
 
-    Usage:
-        data = InkData.load(path_to_inkml)
-        fig, ax = ink.to_fig(...)
+    Fields
+    ------
+    - tag : Literal['train', 'test', 'valid', 'symbols', 'synthetic']
+        Data split identifier.
+    - sample_id : str
+        Unique sample identifier.
+    - tex_raw : str
+        Raw LaTeX label.
+    - tex_norm : str
+        Normalized LaTeX label.
+    - traces : Traces
+        List of strokes; each stroke is a list of `(x, y, t)` points.
+
+    Examples
+    --------
+    >>> data = InkData.load("sample.inkml")
+    >>> data.sample_id
+    'sample_001'
+    >>> fig, ax = data.to_fig()
     """
     tag:       Literal['train', 'test', 'valid', 'symbols', 'synthetic']
     sample_id: str
