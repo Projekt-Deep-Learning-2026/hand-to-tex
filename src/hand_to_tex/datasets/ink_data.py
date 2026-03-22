@@ -11,8 +11,10 @@ from matplotlib.axes import Axes
 
 # Single trace point stored as (x, y, t).
 TracePoint: TypeAlias = tuple[float, float, float]
+# Single trace: list of TracePoints
+Trace:      TypeAlias = list[TracePoint]
 # Collection of traces: each trace is a list of points.
-Traces:     TypeAlias = list[list[TracePoint]]
+Traces:     TypeAlias = list[Trace]
 
 
 @dataclass

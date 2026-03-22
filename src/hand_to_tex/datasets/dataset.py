@@ -2,6 +2,7 @@ from pathlib import Path
 import torch
 from torch.utils.data.dataset import Dataset
 from typing import Optional, Callable
+import matplotlib.pyplot as plt
 
 from .ink_data import InkData
 from ..utils import LatexVocab
@@ -38,10 +39,12 @@ class HMEDataset(Dataset):
         return len(self.filenames)
 
     def __getitem__(self, idx: int):
+        # p = self.filenames[idx]
+
         raise NotImplementedError
 
 
 if __name__ == "__main__":
     d = HMEDataset('data/train')
-    for x in d.filenames:
-        print(Path(d.root, x))
+    for x in d:
+        print(x)
