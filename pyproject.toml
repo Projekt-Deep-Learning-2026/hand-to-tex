@@ -4,10 +4,16 @@ version = "0.1.0"
 description = "Model to convert handwritten math text into latex format"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "matplotlib>=3.10.8",
+]
 
 [dependency-groups]
 dev = [
     "flake8>=7.3.0",
     "pytest>=9.0.2",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

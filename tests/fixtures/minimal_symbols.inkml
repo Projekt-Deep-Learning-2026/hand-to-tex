@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ink xmlns="http://www.w3.org/2003/InkML">
+    <annotation type="sampleId">symbol_001</annotation>
+    <annotation type="splitTagOriginal">symbols</annotation>
+    <annotation type="label">a</annotation>
+    <trace>0.0 0.0 0.0</trace>
+</ink>
