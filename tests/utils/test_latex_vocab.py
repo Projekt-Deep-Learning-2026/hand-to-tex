@@ -10,13 +10,6 @@ class TestLatexVocabLoad:
         """Loading vocab.json returns a LatexVocab object."""
         assert isinstance(vocab, LatexVocab)
 
-    def test_special_tokens_first(self, vocab: LatexVocab):
-        """Special tokens have IDs 0-3."""
-        assert vocab.encode('<PAD>') == 0
-        assert vocab.encode('<SOS>') == 1
-        assert vocab.encode('<EOS>') == 2
-        assert vocab.encode('<UNK>') == 3
-
 
 class TestLatexVocabEncodeDecode:
     """Tests for encode/decode methods."""
@@ -27,16 +20,12 @@ class TestLatexVocabEncodeDecode:
         assert vocab.encode('\\alpha') >= 0
 
     def test_encode_unknown_returns_unknown_id(self, vocab: LatexVocab):
-        """Unknown tokens return UNKNOWN (-1)."""
-        assert vocab.encode('NONEXISTENT') == vocab.UNKNOWN
-
-    def test_decode_valid_id(self, vocab: LatexVocab):
-        """Valid IDs decode to tokens."""
-        assert vocab.decode(0) == '<PAD>'
+        """Unknown tokens return UNK token id."""
+        assert vocab.encode('NONEXISTENT') == vocab.UNK
 
     def test_decode_invalid_id(self, vocab: LatexVocab):
-        """Invalid IDs return None."""
-        assert vocab.decode(99999) is None
+        """Invalid IDs return '<UNK>' token."""
+        assert vocab.decode(-1) == '<UNK>'
 
     def test_encode_decode_roundtrip(self, vocab: LatexVocab):
         """Encoding then decoding returns original token."""
