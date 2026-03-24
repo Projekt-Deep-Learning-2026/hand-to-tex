@@ -163,7 +163,7 @@ class InkData:
         Returns
         -------
         tuple[matplotlib.Figure, matplotlib.Axes]
-            Created matplotlib figure and axes.
+            Created matplotlib figure and axes. test
         """
         fig = plt.figure(num=self.sample_id, figsize=figsize, **kwargs)
         ax = fig.add_subplot(1, 1, 1)
