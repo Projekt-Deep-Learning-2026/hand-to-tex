@@ -113,7 +113,7 @@ class LatexVocab:
     @staticmethod
     def default() -> LatexVocab:
         """Initialise LatexVocab using default vocab.json."""
-        return LatexVocab.load(Path(__file__).parent / 'vocab.json')
+        return LatexVocab.load(Path('data/assets/vocab.json'))
 
     def encode(self, token: str) -> int:
         """Convert a single token to its integer ID.
