@@ -14,9 +14,9 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install flake8
+      - name: Install dependencies
         run: |
-          uv pip install flake8
+          uv sync --dev
 
       - name: Lint with flake8
         run: |
