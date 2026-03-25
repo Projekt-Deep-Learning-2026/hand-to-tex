@@ -48,8 +48,7 @@ class TestInkDataLoad:
 class TestInkDataSymbols:
     """Tests for symbols tag special handling."""
 
-    def test_symbols_tag_copies_tex_raw_to_norm(
-            self, minimal_symbols_inkml: Path):
+    def test_symbols_tag_copies_tex_raw_to_norm(self, minimal_symbols_inkml: Path):
         """For symbols tag, tex_norm is set equal to tex_raw."""
         result = InkData.load(minimal_symbols_inkml)
         assert result.tag == "symbols"
@@ -61,41 +60,31 @@ class TestLoadAnnotation:
 
     def test_load_annotation_label(self):
         """Test parsing label annotation."""
-        elem = ElementTree.fromstring(
-            '<annotation type="label">test label</annotation>'
-        )
+        elem = ElementTree.fromstring('<annotation type="label">test label</annotation>')
         result = InkData._load_annotation(elem)
         assert result == {"tex_raw": "test label"}
 
     def test_load_annotation_sample_id(self):
         """Test parsing sampleId annotation."""
-        elem = ElementTree.fromstring(
-            '<annotation type="sampleId">sample_123</annotation>'
-        )
+        elem = ElementTree.fromstring('<annotation type="sampleId">sample_123</annotation>')
         result = InkData._load_annotation(elem)
         assert result == {"sample_id": "sample_123"}
 
     def test_load_annotation_split_tag(self):
         """Test parsing splitTagOriginal annotation."""
-        elem = ElementTree.fromstring(
-            '<annotation type="splitTagOriginal">test</annotation>'
-        )
+        elem = ElementTree.fromstring('<annotation type="splitTagOriginal">test</annotation>')
         result = InkData._load_annotation(elem)
         assert result == {"tag": "test"}
 
     def test_load_annotation_normalized_label(self):
         """Test parsing normalizedLabel annotation."""
-        elem = ElementTree.fromstring(
-            '<annotation type="normalizedLabel">normalized</annotation>'
-        )
+        elem = ElementTree.fromstring('<annotation type="normalizedLabel">normalized</annotation>')
         result = InkData._load_annotation(elem)
         assert result == {"tex_norm": "normalized"}
 
     def test_load_annotation_unsupported_type_returns_none(self):
         """Test that unsupported annotation types return None."""
-        elem = ElementTree.fromstring(
-            '<annotation type="unknown">value</annotation>'
-        )
+        elem = ElementTree.fromstring('<annotation type="unknown">value</annotation>')
         result = InkData._load_annotation(elem)
         assert result is None
 
@@ -123,9 +112,7 @@ class TestLoadTrace:
 
     def test_load_trace_multiple_points(self):
         """Test parsing trace with multiple points."""
-        elem = ElementTree.fromstring(
-            "<trace>1.0 2.0 0.0, 3.0 4.0 1.0, 5.0 6.0 2.0</trace>"
-        )
+        elem = ElementTree.fromstring("<trace>1.0 2.0 0.0, 3.0 4.0 1.0, 5.0 6.0 2.0</trace>")
         result = InkData._load_trace(elem)
         assert result == [(1.0, 2.0, 0.0), (3.0, 4.0, 1.0), (5.0, 6.0, 2.0)]
 

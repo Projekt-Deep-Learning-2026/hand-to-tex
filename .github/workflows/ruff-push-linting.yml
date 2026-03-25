@@ -3,7 +3,7 @@ name: ruff-push-linting
 on: [push]
 
 jobs:
-  ruff:
+  lint:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
