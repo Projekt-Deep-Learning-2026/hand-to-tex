@@ -1,0 +1,20 @@
+name: ruff-push-linting
+
+on: [push]
+
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ruff Format
+        uses: astral-sh/ruff-action@v1
+        with:
+          args: "format --check"
+      
+      - name: Ruff Check
+        uses: astral-sh/ruff-action@v1
+        with:
+          args: "check --output-format=github"
