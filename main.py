@@ -1,5 +1,3 @@
-
-
 def main():
     print("Hello from hand-to-tex!")
 

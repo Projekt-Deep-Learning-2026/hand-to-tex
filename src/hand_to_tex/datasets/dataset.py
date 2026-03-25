@@ -4,7 +4,7 @@ from torch.utils.data.dataset import Dataset
 from torch import Tensor
 from typing import Callable, Final
 
-from .ink_data import InkData, Trace
+from .ink_data import InkData
 from ..utils import LatexVocab
 
 
@@ -94,7 +94,7 @@ class HMEDataset(Dataset):
         ], dim=1)
 
     @staticmethod
-    def _flatten_traces(traces: list[Trace]) -> tuple[Tensor, Tensor]:
+    def _flatten_traces(traces: list) -> tuple[Tensor, Tensor]:
         """Returns pair of tensors : (x, y, t) points and trace indexes
         for InkData traces
 

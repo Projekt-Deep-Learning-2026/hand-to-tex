@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import dataclasses
 import json
 import re
@@ -56,13 +57,17 @@ class LatexVocab:
     # Regex for LaTeX command tokenization.
     # Source: https://arxiv.org/pdf/2404.10690 (CROHME dataset paper)
     _COMMAND_RE: re.Pattern[str] = re.compile(
-        r'\\(' + '|'.join([
-            r'mathbb\{[a-zA-Z]\}',
-            r'begin\{[a-z]+\}',
-            r'end\{[a-z]+\}',
-            r'[a-zA-Z]+',
-            r'.',
-        ]) + r')'
+        r"\\("
+        + "|".join(
+            [
+                r"mathbb\{[a-zA-Z]\}",
+                r"begin\{[a-z]+\}",
+                r"end\{[a-z]+\}",
+                r"[a-zA-Z]+",
+                r".",
+            ]
+        )
+        + r")"
     )
 
     @staticmethod
@@ -87,7 +92,7 @@ class LatexVocab:
         ------
         ValueError if any of the required keys are missing
         """
-        with open(path, 'r') as f:
+        with open(path) as f:
             data = json.load(f)
 
         token_list = []
@@ -98,8 +103,8 @@ class LatexVocab:
             tokens[cat] = ts
             token_list += ts
 
-        _encode = dict((token, idx) for idx, token in enumerate(token_list))
-        _decode = dict((idx, token) for idx, token in enumerate(token_list))
+        _encode = {token: idx for idx, token in enumerate(token_list)}
+        _decode = dict(enumerate(token_list))
 
         if not LatexVocab.required_keys.issubset(token_list):
             raise ValueError(f"Provided vocab at: {path} doesn't contain \
@@ -168,7 +173,7 @@ class LatexVocab:
         """
         tokens = []
         while expr:
-            if expr[0] == '\\':
+            if expr[0] == "\\":
                 if (match := self._COMMAND_RE.match(expr)) is None:
                     raise ValueError(f"LatexVocab couldn't parse expr: {expr}")
                 t = match.group()

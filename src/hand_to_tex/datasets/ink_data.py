@@ -1,20 +1,18 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, TypeAlias
+from typing import Literal
 from xml.etree import ElementTree
 
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
 from matplotlib.axes import Axes
-
+from matplotlib.figure import Figure
 
 # Single trace point stored as (x, y, t).
-TracePoint: TypeAlias = tuple[float, float, float]
-# Single trace: list of TracePoints
-Trace:      TypeAlias = list[TracePoint]
+type TracePoint = tuple[float, float, float]
 # Collection of traces: each trace is a list of points.
-Traces:     TypeAlias = list[Trace]
+type Traces = list[list[TracePoint]]
 
 
 @dataclass
@@ -43,19 +41,20 @@ class InkData:
     'sample_001'
     >>> fig, ax = data.to_fig()
     """
-    tag:       Literal['train', 'test', 'valid', 'symbols', 'synthetic']
-    sample_id: str
-    tex_raw:   str
-    tex_norm:  str
-    traces:    Traces
 
-    ENCODING = 'utf-8'
+    tag: Literal["train", "test", "valid", "symbols", "synthetic"]
+    sample_id: str
+    tex_raw: str
+    tex_norm: str
+    traces: Traces
+
+    ENCODING = "utf-8"
     TAG_PREFIX = r"{http://www.w3.org/2003/InkML}"
     ANNOTATION_MAP = {
-        'label':            'tex_raw',
-        'splitTagOriginal': 'tag',
-        'sampleId':         'sample_id',
-        'normalizedLabel':  'tex_norm'
+        "label": "tex_raw",
+        "splitTagOriginal": "tag",
+        "sampleId": "sample_id",
+        "normalizedLabel": "tex_norm",
     }
 
     @staticmethod
@@ -73,22 +72,22 @@ class InkData:
             Parsed sample with metadata and a list of strokes.
         """
 
-        with open(path, 'r', encoding=InkData.ENCODING) as file:
+        with open(path, encoding=InkData.ENCODING) as file:
             root = ElementTree.fromstring(file.read())
 
         kwargs = {}
         traces = []
         for elem in root:
             match elem.tag.removeprefix(InkData.TAG_PREFIX):
-                case 'annotation':
+                case "annotation":
                     if (kwarg := InkData._load_annotation(elem)) is not None:
                         kwargs.update(kwarg)
-                case 'trace':
+                case "trace":
                     if (trace := InkData._load_trace(elem)) is not None:
                         traces.append(trace)
 
-        if kwargs.get('tag') == 'symbols':
-            kwargs['tex_norm'] = kwargs['tex_raw']
+        if kwargs.get("tag") == "symbols":
+            kwargs["tex_norm"] = kwargs["tex_raw"]
 
         return InkData(traces=traces, **kwargs)
 
@@ -107,10 +106,10 @@ class InkData:
             Dictionary `{field_name: value}` or `None`
             if the annotation type is not supported.
         """
-        t = str(elem.attrib.get('type'))
-        if (k := InkData.ANNOTATION_MAP.get(t)):
+        t = str(elem.attrib.get("type"))
+        if k := InkData.ANNOTATION_MAP.get(t):
             v = elem.text
-            return {k: ('' if v is None else v)}
+            return {k: ("" if v is None else v)}
         else:
             return None
 
@@ -132,21 +131,21 @@ class InkData:
         if (txt := elem.text) is None:
             return []
         trace = []
-        for point in txt.split(','):
+        for point in txt.split(","):
             x, y, t = map(float, point.split())
             trace.append((x, y, t))
 
         return trace
 
     def to_fig(
-            self,
-            *,
-            figsize: tuple[int, int] = (6, 4),
-            linewidth:         float = 2.0,
-            color:               str = 'black',
-            invert_y:           bool = True,
-            **kwargs
-            ) -> tuple[Figure, Axes]:
+        self,
+        *,
+        figsize: tuple[int, int] = (6, 4),
+        linewidth: float = 2.0,
+        color: str = "black",
+        invert_y: bool = True,
+        **kwargs,
+    ) -> tuple[Figure, Axes]:
         """Render sample traces using matplotlib.
 
         Parameters
@@ -177,8 +176,8 @@ class InkData:
             y_coords = [point[1] for point in trace]
             ax.plot(x_coords, y_coords, color=color, linewidth=linewidth)
 
-        ax.set_aspect('equal', adjustable='box')
-        ax.axis('off')
+        ax.set_aspect("equal", adjustable="box")
+        ax.axis("off")
 
         title = f"Sample: {self.sample_id} ( {self.tag} )\n"
         title += rf"' ${self.tex_norm}$ '"
