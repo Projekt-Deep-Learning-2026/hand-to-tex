@@ -2,7 +2,7 @@ from pathlib import Path
 import torch
 from torch.utils.data.dataset import Dataset
 from torch import Tensor
-from typing import Optional, Callable
+from typing import Callable, Final
 
 from .ink_data import InkData, Trace
 from ..utils import LatexVocab
@@ -12,13 +12,13 @@ class HMEDataset(Dataset):
     """Handwritten Mathematical Expressions dataset for processing
     `.inkml` files
     """
-    EPS: float = 1e-8
+    EPS: Final[float] = 1e-6
 
     def __init__(
                 self,
                 root: Path | str,
-                vocab: Optional[LatexVocab] = None,
-                transform: Optional[Callable] = None,
+                vocab: LatexVocab | None = None,
+                transform: Callable[[Tensor], Tensor] | None = None,
             ):
         """Creates the dataset
 
@@ -28,12 +28,12 @@ class HMEDataset(Dataset):
             Directory of all dataset files
         vocab : LatexVocab | None
             Vocabulary for tokenization, default `LatexVocab.default()`
-        transform : Callable | None
-            #TODO
+        transform : (Callable: `Tensor` -> `Tensor`) | None
+            Optional transformation applied to features before returning.
         """
 
         self.root = Path(root)
-        self.filenames = sorted(list(self.root.rglob('*.inkml')))
+        self.filenames = sorted(self.root.rglob('*.inkml'))
 
         self.vocab = LatexVocab.default() if vocab is None else vocab
         self.transform = transform
@@ -41,18 +41,27 @@ class HMEDataset(Dataset):
     def __len__(self) -> int:
         return len(self.filenames)
 
-    def __getitem__(self, idx: int):
-        # p = self.filenames[idx]
-        return InkData.load(self.filenames[idx])
-        # raise NotImplementedError
+    def __repr__(self) -> str:
+        return f"HMEDataset(root={self.root!r}, n_samples={len(self)})"
+
+    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor]:
+        ink = InkData.load(self.filenames[idx])
+        features = HMEDataset.extract_features(ink)
+        truth = ink.tex_norm
+        tokens = self.vocab.encode_expr(truth)
+
+        if self.transform:
+            features = self.transform(features)
+
+        return features, torch.tensor(tokens, dtype=torch.long)
 
     @staticmethod
-    def extract_features(ink: InkData) -> torch.Tensor:
+    def extract_features(ink: InkData) -> Tensor:
         """Extracts features of an InkData object
 
         Returns
         -------
-        torch.Tensor of shape `(n, 11)` with features:
+        torch.Tensor of shape `(N, 10)` with features:
             - x_norm, y_norm
                 Normalised coordinates of a trace point
             - t_rel
@@ -61,9 +70,11 @@ class HMEDataset(Dataset):
                 Change in position and time between every TracePoint
             - speed
                 Pen speed `sqrt(dx^2 + dy^2) / (dt + EPS)`
-            - dir_x, dir_y
-                Normalized writing direction vector
-            - is_stroke_start, is_stroke_end
+            - curvature
+                Signed local curvature `dtheta / dist`
+            - acc_tan
+                Tangential acceleration `dspeed / dt`
+            - is_stroke_start
                 Binary indicators of stroke boundaries
         """
         xyt, t_idxs = HMEDataset._flatten_traces(ink.traces)
@@ -71,34 +82,15 @@ class HMEDataset(Dataset):
         xyt = HMEDataset._normalise_data(xyt)
         d_xyt, same_trace_prev = HMEDataset._to_deltas(xyt, t_idxs)
 
-        dist = torch.hypot(d_xyt[:, 0], d_xyt[:, 1])
-        speed = torch.where(
-            d_xyt[:, 2] > 0,
-            dist / (d_xyt[:, 2] + HMEDataset.EPS),
-            torch.zeros_like(dist)
-        )
-        dir_x = torch.where(
-            dist > 0,
-            d_xyt[:, 0] / (dist + HMEDataset.EPS),
-            torch.zeros_like(d_xyt[:, 0])
-        )
-        dir_y = torch.where(
-            dist > 0,
-            d_xyt[:, 1] / (dist + HMEDataset.EPS),
-            torch.zeros_like(d_xyt[:, 1])
-        )
+        dynamics = HMEDataset._dynamics(d_xyt, same_trace_prev)
 
         is_stroke_start = (~same_trace_prev).float()
-        is_stroke_end = (~torch.roll(same_trace_prev, -1)).float()
 
-        return torch.stack([
+        return torch.cat([
             xyt,
             d_xyt,
-            speed.unsqueeze(1),
-            dir_x.unsqueeze(1),
-            dir_y.unsqueeze(1),
+            dynamics,
             is_stroke_start.unsqueeze(1),
-            is_stroke_end.unsqueeze(1),
         ], dim=1)
 
     @staticmethod
@@ -124,23 +116,28 @@ class HMEDataset(Dataset):
     @staticmethod
     def _normalise_data(xyt: Tensor) -> Tensor:
         """Perform normalization on `(x, y, t)` points tensor.
-        Normalization moves (x, y) -> [0, 1]x[0, 1], and t := t - t0 where
-        t0 is first timestamp recorded in input tensor
+        Normalization uses uniform scaling to preserve aspect ratio,
+        and shifts time so that `t := t - t0`.
 
         Parameters
         ----------
         xyt : Tensor
             Tensor containing points `(x, y, t)`
+
+        Returns
+        -------
+        Tensor
+            Shape `(N, 3)` with normalized (x, y, t)
         """
-        xy = xyt[:, :2]
-        xy_min = xy.min(dim=0, keepdim=True).values
-        xy_max = xy.max(dim=0, keepdim=True).values
-        t0 = xyt[:, 2].min(dim=0, keepdim=True).values
+        xy_min = xyt[:, :2].min(dim=0, keepdim=True).values
+        xy_max = xyt[:, :2].max(dim=0, keepdim=True).values
+        t0 = xyt[:, 2:3].min(dim=0, keepdim=True).values
 
-        xyt[:, :2] = (xy - xy_min) / (xy_max - xy_min + HMEDataset.EPS)
-        xyt[:, 2] -= t0
+        xy_range = (xy_max - xy_min).max() + HMEDataset.EPS
+        xy_norm = (xyt[:, :2] - xy_min) / xy_range
+        t_norm = xyt[:, 2:3] - t0
 
-        return xyt
+        return torch.cat([xy_norm, t_norm], dim=1)
 
     @staticmethod
     def _to_deltas(xyt: Tensor, t_idxs: Tensor) -> tuple[Tensor, Tensor]:
@@ -159,9 +156,69 @@ class HMEDataset(Dataset):
 
         return deltas, same_prev
 
+    @staticmethod
+    def _dynamics(d_xyt: Tensor, same_prev: Tensor) -> Tensor:
+        """Extract dynamic handwriting features from deltas.
 
-if __name__ == "__main__":
+        Parameters
+        ----------
+        d_xyt : Tensor
+            Tensor `(N, 3)` with `(dx, dy, dt)`.
+        same_prev : Tensor
+            Boolean tensor `(N,)`, where `same_prev[i] == True` iff point `i`
+            belongs to the same stroke as point `i-1`.
 
-    d = HMEDataset('data/train')
-    ink = d[4]
-    HMEDataset.extract_features(ink)
+        Returns
+        -------
+        Tensor
+            Tensor `(N, 3)` with columns:
+            `(speed, curve, acc_tan)`.
+        """
+        dx = d_xyt[:, 0]
+        dy = d_xyt[:, 1]
+        dt = d_xyt[:, 2]
+
+        dist = torch.hypot(dx, dy)
+
+        speed = torch.where(
+            dt > HMEDataset.EPS,
+            dist / dt,
+            torch.zeros_like(dist),
+        )
+
+        ux = torch.where(
+            dist > HMEDataset.EPS,
+            dx / dist,
+            torch.zeros_like(dx),
+        )
+        uy = torch.where(
+            dist > HMEDataset.EPS,
+            dy / dist,
+            torch.zeros_like(dy),
+        )
+
+        cross = ux[:-1] * uy[1:] - uy[:-1] * ux[1:]
+        dot = ux[:-1] * ux[1:] + uy[:-1] * uy[1:]
+        dtheta = torch.atan2(cross, dot)
+
+        curve = torch.zeros_like(dist)
+        curve = same_prev[1:] & same_prev[:-1] & (dist[1:] > HMEDataset.EPS)
+        curve[1:] = torch.where(
+            curve,
+            dtheta / dist[1:],
+            torch.zeros_like(dtheta),
+        )
+
+        dspeed = torch.zeros_like(speed)
+        dspeed[1:] = speed[1:] - speed[:-1]
+        acc_tan = torch.where(
+            same_prev & (dt > HMEDataset.EPS),
+            dspeed / dt,
+            torch.zeros_like(dspeed),
+        )
+
+        return torch.cat([
+            speed.unsqueeze(1),
+            curve.unsqueeze(1),
+            acc_tan.unsqueeze(1),
+        ], dim=1)
