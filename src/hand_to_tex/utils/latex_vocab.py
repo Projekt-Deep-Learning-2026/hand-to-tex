@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import dataclasses
 import json
 import re
@@ -42,13 +43,17 @@ class LatexVocab:
     # Regex for LaTeX command tokenization.
     # Source: https://arxiv.org/pdf/2404.10690 (CROHME dataset paper)
     _COMMAND_RE: re.Pattern[str] = re.compile(
-        r'\\(' + '|'.join([
-            r'mathbb\{[a-zA-Z]\}',
-            r'begin\{[a-z]+\}',
-            r'end\{[a-z]+\}',
-            r'[a-zA-Z]+',
-            r'.',
-        ]) + r')'
+        r"\\("
+        + "|".join(
+            [
+                r"mathbb\{[a-zA-Z]\}",
+                r"begin\{[a-z]+\}",
+                r"end\{[a-z]+\}",
+                r"[a-zA-Z]+",
+                r".",
+            ]
+        )
+        + r")"
     )
 
     UNKNOWN: int = -1
@@ -68,7 +73,7 @@ class LatexVocab:
         -------
         LatexVocab object for tokenization-detokenization of latex expressions
         """
-        with open(path, 'r') as f:
+        with open(path) as f:
             data = json.load(f)
 
         token_list = []
@@ -79,15 +84,15 @@ class LatexVocab:
             tokens[cat] = ts
             token_list += ts
 
-        _encode = dict((token, idx) for idx, token in enumerate(token_list))
-        _decode = dict((idx, token) for idx, token in enumerate(token_list))
+        _encode = {token: idx for idx, token in enumerate(token_list)}
+        _decode = dict(enumerate(token_list))
 
         return LatexVocab(tokens, _encode, _decode)
 
     @staticmethod
     def default() -> LatexVocab:
         """Initialise LatexVocab using default vocab.json."""
-        return LatexVocab.load(Path(__file__).parent / 'vocab.json')
+        return LatexVocab.load(Path(__file__).parent / "vocab.json")
 
     def encode(self, token: str) -> int:
         """Convert a single token to its integer ID.
@@ -142,14 +147,14 @@ class LatexVocab:
         """
         tokens = []
         while expr:
-            if expr[0] == '\\':
+            if expr[0] == "\\":
                 if (match := self._COMMAND_RE.match(expr)) is None:
                     raise ValueError(f"LatexVocab couldn't parse expr: {expr}")
                 t = match.group()
             else:
                 t = expr[0]
             tokens.append(t)
-            expr = expr[len(t):]
+            expr = expr[len(t) :]
 
         return [self.encode(t) for t in tokens]
 

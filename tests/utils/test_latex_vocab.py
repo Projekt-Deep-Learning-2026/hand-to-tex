@@ -12,10 +12,10 @@ class TestLatexVocabLoad:
 
     def test_special_tokens_first(self, vocab: LatexVocab):
         """Special tokens have IDs 0-3."""
-        assert vocab.encode('<PAD>') == 0
-        assert vocab.encode('<SOS>') == 1
-        assert vocab.encode('<EOS>') == 2
-        assert vocab.encode('<UNK>') == 3
+        assert vocab.encode("<PAD>") == 0
+        assert vocab.encode("<SOS>") == 1
+        assert vocab.encode("<EOS>") == 2
+        assert vocab.encode("<UNK>") == 3
 
 
 class TestLatexVocabEncodeDecode:
@@ -23,16 +23,16 @@ class TestLatexVocabEncodeDecode:
 
     def test_encode_known_token(self, vocab: LatexVocab):
         """Known tokens return valid IDs."""
-        assert vocab.encode('x') >= 0
-        assert vocab.encode('\\alpha') >= 0
+        assert vocab.encode("x") >= 0
+        assert vocab.encode("\\alpha") >= 0
 
     def test_encode_unknown_returns_unknown_id(self, vocab: LatexVocab):
         """Unknown tokens return UNKNOWN (-1)."""
-        assert vocab.encode('NONEXISTENT') == vocab.UNKNOWN
+        assert vocab.encode("NONEXISTENT") == vocab.UNKNOWN
 
     def test_decode_valid_id(self, vocab: LatexVocab):
         """Valid IDs decode to tokens."""
-        assert vocab.decode(0) == '<PAD>'
+        assert vocab.decode(0) == "<PAD>"
 
     def test_decode_invalid_id(self, vocab: LatexVocab):
         """Invalid IDs return None."""
@@ -40,7 +40,7 @@ class TestLatexVocabEncodeDecode:
 
     def test_encode_decode_roundtrip(self, vocab: LatexVocab):
         """Encoding then decoding returns original token."""
-        for token in ['x', '+', '\\frac', '\\mathbb{R}']:
+        for token in ["x", "+", "\\frac", "\\mathbb{R}"]:
             token_id = vocab.encode(token)
             assert vocab.decode(token_id) == token
 
@@ -50,27 +50,27 @@ class TestLatexVocabExpr:
 
     def test_encode_expr_simple(self, vocab: LatexVocab):
         """Simple expression is tokenized correctly."""
-        ids = vocab.encode_expr('x+y')
+        ids = vocab.encode_expr("x+y")
         assert len(ids) == 3
 
     def test_encode_expr_with_command(self, vocab: LatexVocab):
         """LaTeX commands are tokenized as single tokens."""
-        ids = vocab.encode_expr('\\alpha')
+        ids = vocab.encode_expr("\\alpha")
         assert len(ids) == 1
 
     def test_encode_expr_complex(self, vocab: LatexVocab):
         """Complex expression tokenizes correctly."""
-        ids = vocab.encode_expr('\\frac{a}{b}')
+        ids = vocab.encode_expr("\\frac{a}{b}")
         # \frac, {, a, }, {, b, }
         assert len(ids) == 7
 
     def test_encode_expr_mathbb(self, vocab: LatexVocab):
         """Blackboard bold is tokenized as single token."""
-        ids = vocab.encode_expr('\\mathbb{R}')
+        ids = vocab.encode_expr("\\mathbb{R}")
         assert len(ids) == 1
 
     def test_decode_sequence(self, vocab: LatexVocab):
         """Decode sequence returns list of tokens."""
-        ids = vocab.encode_expr('x+y')
+        ids = vocab.encode_expr("x+y")
         tokens = vocab.decode_sequence(ids)
-        assert tokens == ['x', '+', 'y']
+        assert tokens == ["x", "+", "y"]
