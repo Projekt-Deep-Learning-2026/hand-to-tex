@@ -82,40 +82,37 @@ class HMEDataset(Dataset):
             - is_stroke_start
                 Binary indicators of stroke boundaries
         """
-        xyt, t_idxs = HMEDataset._flatten_traces(ink.traces)
+        if ink.traces == []:
+            return torch.zeros((0, 10), dtype=torch.float32)
 
-        xyt = HMEDataset._normalise_data(xyt)
-        d_xyt, same_trace_prev = HMEDataset._to_deltas(xyt, t_idxs)
+        traces = [torch.as_tensor(t, dtype=torch.float32) for t in ink.traces if len(t) > 0]
 
-        dynamics = HMEDataset._dynamics(d_xyt, same_trace_prev)
+        trace_lengths = [trace.shape[0] for trace in traces]
+        all_points = torch.cat(traces, dim=0)
+        all_points = HMEDataset._normalise_data(all_points)
+        norm_traces = all_points.split(trace_lengths)
 
-        is_stroke_start = (~same_trace_prev).float()
+        features_per_trace = []
+        for trace in norm_traces:
+            d_xyt = HMEDataset._trace_deltas(trace)
+            dynamics = HMEDataset._trace_dynamics(d_xyt)
 
-        return torch.cat(
-            [
-                xyt,
-                d_xyt,
-                dynamics,
-                is_stroke_start.unsqueeze(1),
-            ],
-            dim=1,
-        )
+            is_stroke_start = torch.zeros(trace.shape[0], dtype=torch.float32, device=trace.device)
+            is_stroke_start[0] = 1.0
 
-    @staticmethod
-    def _flatten_traces(traces: list) -> tuple[Tensor, Tensor]:
-        """Returns pair of tensors : (x, y, t) points and trace indexes
-        for InkData traces
+            features_per_trace.append(
+                torch.cat(
+                    [
+                        trace,
+                        d_xyt,
+                        dynamics,
+                        is_stroke_start.unsqueeze(1),
+                    ],
+                    dim=1,
+                )
+            )
 
-        Parameters
-        ----------
-        traces : Traces
-            List of Trace elements obtained from `InkData.traces`
-        """
-        xyt = torch.cat([torch.as_tensor(t, dtype=torch.float32) for t in traces], dim=0)
-        trace_idxs = torch.repeat_interleave(
-            torch.arange(len(traces)), torch.as_tensor([len(t) for t in traces], dtype=torch.int64)
-        )
-        return xyt, trace_idxs
+        return torch.cat(features_per_trace, dim=0)
 
     @staticmethod
     def _normalise_data(xyt: Tensor) -> Tensor:
@@ -144,33 +141,23 @@ class HMEDataset(Dataset):
         return torch.cat([xy_norm, t_norm], dim=1)
 
     @staticmethod
-    def _to_deltas(xyt: Tensor, t_idxs: Tensor) -> tuple[Tensor, Tensor]:
-        """Converts tensor of points into tensor of changes,
-        `(x, y, t)` -> `(dx, dy, dt)`
-        and binary array that indicates whether point on this index belongs
-        to the same trace as previous one or not
+    def _trace_deltas(xyt: Tensor) -> Tensor:
+        """Compute `(dx, dy, dt)` for a single normalized trace.
+
+        The first point in every trace has zero deltas by definition.
         """
         deltas = torch.zeros_like(xyt)
         deltas[1:] = xyt[1:] - xyt[:-1]
-
-        same_prev = torch.zeros_like(xyt[:, 0], dtype=torch.bool)
-        same_prev[1:] = t_idxs[1:] == t_idxs[:-1]
-
-        deltas *= same_prev.unsqueeze(1)
-
-        return deltas, same_prev
+        return deltas
 
     @staticmethod
-    def _dynamics(d_xyt: Tensor, same_prev: Tensor) -> Tensor:
-        """Extract dynamic handwriting features from deltas.
+    def _trace_dynamics(d_xyt: Tensor) -> Tensor:
+        """Extract dynamic handwriting features from one trace deltas.
 
         Parameters
         ----------
         d_xyt : Tensor
             Tensor `(N, 3)` with `(dx, dy, dt)`.
-        same_prev : Tensor
-            Boolean tensor `(N,)`, where `same_prev[i] == True` iff point `i`
-            belongs to the same stroke as point `i-1`.
 
         Returns
         -------
@@ -206,9 +193,8 @@ class HMEDataset(Dataset):
         dtheta = torch.atan2(cross, dot)
 
         curve = torch.zeros_like(dist)
-        curve = same_prev[1:] & same_prev[:-1] & (dist[1:] > HMEDataset.EPS)
         curve[1:] = torch.where(
-            curve,
+            dist[1:] > HMEDataset.EPS,
             dtheta / dist[1:],
             torch.zeros_like(dtheta),
         )
@@ -216,7 +202,7 @@ class HMEDataset(Dataset):
         dspeed = torch.zeros_like(speed)
         dspeed[1:] = speed[1:] - speed[:-1]
         acc_tan = torch.where(
-            same_prev & (dt > HMEDataset.EPS),
+            dt > HMEDataset.EPS,
             dspeed / dt,
             torch.zeros_like(dspeed),
         )
