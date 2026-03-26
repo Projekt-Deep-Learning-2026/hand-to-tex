@@ -1,0 +1,12 @@
+<ink xmlns="http://www.w3.org/2003/InkML">
+  <annotation type="label">\dot</annotation>
+  <annotation type="splitTagOriginal">symbols</annotation>
+  <annotation type="inkCreationMethod">human</annotation>
+  <annotation type="sampleId">03a7242fe6f68f44</annotation>
+  <traceFormat>
+    <channel name="X" type="decimal" />
+    <channel name="Y" type="decimal" />
+    <channel name="T" type="decimal" units="ms" />
+  </traceFormat>
+  <trace id="0">1224.20 254.03 3053.0,1228.20 257.36 3078.0,1231.30 258.57 3083.0,1235.00 259.86 3088.0,1239.10 261.34 3093.0,1243.60 263.01 3098.0,1245.70 263.84 3103.0</trace>
+</ink>

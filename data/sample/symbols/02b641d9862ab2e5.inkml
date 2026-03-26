@@ -1,0 +1,14 @@
+<ink xmlns="http://www.w3.org/2003/InkML">
+  <annotation type="label">\equiv</annotation>
+  <annotation type="splitTagOriginal">symbols</annotation>
+  <annotation type="inkCreationMethod">human</annotation>
+  <annotation type="sampleId">02b641d9862ab2e5</annotation>
+  <traceFormat>
+    <channel name="X" type="decimal" />
+    <channel name="Y" type="decimal" />
+    <channel name="T" type="decimal" units="ms" />
+  </traceFormat>
+  <trace id="0">888.00 235.00 3195.0,892.00 235.00 3252.0,897.00 235.00 3261.0,903.00 235.00 3269.0,910.00 234.00 3277.0,917.00 234.00 3286.0,924.00 233.00 3294.0,932.00 233.00 3302.0,935.00 233.00 3318.0</trace>
+  <trace id="1">889.00 256.00 3419.0,896.00 258.00 3477.0,904.00 258.00 3485.0,912.00 258.00 3492.0,915.95 258.00 3496.0,923.00 258.00 3501.0,933.00 256.00 3509.0,936.66 255.27 3512.0,937.00 255.00 3525.0</trace>
+  <trace id="2">868.00 289.00 3634.0,874.00 289.00 3676.0,882.00 288.00 3684.0,891.00 287.00 3692.0,894.11 286.65 3695.0,903.00 285.00 3701.0,912.00 284.00 3709.0,923.00 282.00 3717.0,938.00 280.00 3725.0,942.79 279.36 3728.0,942.00 279.00 3741.0</trace>
+</ink>

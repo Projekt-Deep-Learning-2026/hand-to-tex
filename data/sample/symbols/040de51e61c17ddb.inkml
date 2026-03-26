@@ -1,0 +1,14 @@
+<ink xmlns="http://www.w3.org/2003/InkML">
+  <annotation type="label">\div</annotation>
+  <annotation type="splitTagOriginal">symbols</annotation>
+  <annotation type="inkCreationMethod">human</annotation>
+  <annotation type="sampleId">040de51e61c17ddb</annotation>
+  <traceFormat>
+    <channel name="X" type="decimal" />
+    <channel name="Y" type="decimal" />
+    <channel name="T" type="decimal" units="ms" />
+  </traceFormat>
+  <trace id="0">826.35 104.50 5269.0,826.35 104.50 5356.0</trace>
+  <trace id="1">818.36 198.37 5444.0,818.36 198.37 5531.0</trace>
+  <trace id="2">786.39 150.44 5032.0,792.38 150.44 5069.0,801.37 150.44 5082.0,808.87 149.81 5090.0,813.36 149.44 5094.0,823.19 149.44 5107.0,833.35 150.44 5120.0,842.34 151.44 5132.0,846.01 152.05 5139.0,852.11 151.49 5156.0,852.33 151.44 5168.0</trace>
+</ink>

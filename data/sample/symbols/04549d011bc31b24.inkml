@@ -1,0 +1,14 @@
+<ink xmlns="http://www.w3.org/2003/InkML">
+  <annotation type="label">\Pi</annotation>
+  <annotation type="splitTagOriginal">symbols</annotation>
+  <annotation type="inkCreationMethod">human</annotation>
+  <annotation type="sampleId">04549d011bc31b24</annotation>
+  <traceFormat>
+    <channel name="X" type="decimal" />
+    <channel name="Y" type="decimal" />
+    <channel name="T" type="decimal" units="ms" />
+  </traceFormat>
+  <trace id="0">419.78 78.27 6137.0,419.57 81.89 6255.0,417.89 86.44 6272.0,416.28 90.75 6285.0,414.78 94.25 6297.0,413.28 100.25 6320.0,412.29 103.74 6354.0,413.28 105.24 6388.0</trace>
+  <trace id="1">456.76 81.76 6656.0,452.76 87.26 6700.0,450.14 92.88 6720.0,449.04 96.66 6738.0,447.27 102.24 6746.0,447.27 106.24 6770.0,446.77 107.74 6804.0</trace>
+  <trace id="2">408.79 79.76 7083.0,417.28 80.76 7162.0,422.52 81.69 7169.0,425.78 82.26 7173.0,433.27 81.76 7185.0,441.77 82.76 7197.0,446.48 82.76 7203.0,449.77 82.76 7208.0,457.26 82.76 7219.0,463.26 83.26 7231.0,467.76 83.76 7242.0,471.25 83.76 7254.0,474.29 83.76 7289.0,474.75 84.76 7311.0</trace>
+</ink>

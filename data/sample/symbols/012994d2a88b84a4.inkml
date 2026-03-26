@@ -1,0 +1,12 @@
+<ink xmlns="http://www.w3.org/2003/InkML">
+  <annotation type="label">(</annotation>
+  <annotation type="splitTagOriginal">symbols</annotation>
+  <annotation type="inkCreationMethod">human</annotation>
+  <annotation type="sampleId">012994d2a88b84a4</annotation>
+  <traceFormat>
+    <channel name="X" type="decimal" />
+    <channel name="Y" type="decimal" />
+    <channel name="T" type="decimal" units="ms" />
+  </traceFormat>
+  <trace id="0">1155.80 53.60 4327.0,1138.80 67.58 4397.0,1130.40 74.58 4404.0,1120.90 87.57 4411.0,1111.90 97.56 4418.0,1102.00 113.54 4425.0,1087.00 138.52 4439.0,1077.10 168.49 4453.0,1075.20 174.10 4455.0,1072.10 187.47 4467.0,1070.40 193.98 4472.0,1071.10 200.46 4481.0,1070.70 205.99 4487.0,1073.10 212.45 4495.0,1074.10 218.44 4502.0,1079.10 222.44 4509.0,1082.10 227.44 4516.0,1089.00 231.43 4523.0,1108.30 240.62 4536.0,1146.80 246.42 4551.0,1149.90 246.84 4552.0,1149.90 246.84 4564.0</trace>
+</ink>

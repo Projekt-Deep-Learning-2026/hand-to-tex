@@ -1,0 +1,12 @@
+<ink xmlns="http://www.w3.org/2003/InkML">
+  <annotation type="label">\neg</annotation>
+  <annotation type="splitTagOriginal">symbols</annotation>
+  <annotation type="inkCreationMethod">human</annotation>
+  <annotation type="sampleId">03a15f81b4fd2ba7</annotation>
+  <traceFormat>
+    <channel name="X" type="decimal" />
+    <channel name="Y" type="decimal" />
+    <channel name="T" type="decimal" units="ms" />
+  </traceFormat>
+  <trace id="0">502.24 122.73 10259.0,510.73 121.23 10325.0,516.73 121.23 10337.0,520.92 120.81 10347.0,526.23 120.23 10360.0,530.72 119.73 10372.0,536.72 119.23 10395.0,539.72 125.22 10464.0,539.72 128.72 10475.0,540.72 135.21 10498.0,540.72 138.71 10510.0,540.72 142.21 10521.0,541.36 145.43 10536.0,541.72 148.70 10544.0,543.51 152.13 10571.0,544.72 152.20 10590.0</trace>
+</ink>

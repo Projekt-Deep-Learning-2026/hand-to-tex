@@ -1,0 +1,13 @@
+<ink xmlns="http://www.w3.org/2003/InkML">
+  <annotation type="label">\epsilon</annotation>
+  <annotation type="splitTagOriginal">symbols</annotation>
+  <annotation type="inkCreationMethod">human</annotation>
+  <annotation type="sampleId">03c090aebf755ef3</annotation>
+  <traceFormat>
+    <channel name="X" type="decimal" />
+    <channel name="Y" type="decimal" />
+    <channel name="T" type="decimal" units="ms" />
+  </traceFormat>
+  <trace id="0">1207.00 114.00 6547.0,1190.00 149.00 6580.0,1184.00 161.00 6597.0,1174.00 182.00 6613.0,1171.00 194.00 6630.0,1173.00 211.00 6647.0,1180.00 222.00 6664.0,1193.00 227.00 6680.0,1217.00 231.00 6697.0,1228.00 215.00 6714.0,1246.00 205.00 6730.0,1249.00 200.00 6747.0,1259.00 193.00 6764.0,1259.00 193.00 6780.0</trace>
+  <trace id="1">1156.00 182.00 6914.0,1163.00 182.00 6964.0,1172.00 181.00 6981.0,1184.00 180.00 6997.0,1195.00 177.00 7014.0,1195.00 177.00 7030.0</trace>
+</ink>

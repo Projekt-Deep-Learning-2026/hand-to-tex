@@ -1,0 +1,12 @@
+<ink xmlns="http://www.w3.org/2003/InkML">
+  <annotation type="label">\overline</annotation>
+  <annotation type="splitTagOriginal">symbols</annotation>
+  <annotation type="inkCreationMethod">human</annotation>
+  <annotation type="sampleId">016603a4b4b80d28</annotation>
+  <traceFormat>
+    <channel name="X" type="decimal" />
+    <channel name="Y" type="decimal" />
+    <channel name="T" type="decimal" units="ms" />
+  </traceFormat>
+  <trace id="0">626.88 233.45 538.0,626.88 236.61 570.0,636.88 233.45 591.0,655.00 229.58 602.0,676.62 225.52 610.0,686.88 223.60 613.0,728.75 217.62 624.0,738.82 216.19 627.0,768.75 214.46 634.0,794.47 213.61 643.0,800.62 213.41 646.0,800.62 213.41 655.0</trace>
+</ink>

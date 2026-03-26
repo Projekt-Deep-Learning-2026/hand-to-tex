@@ -1,0 +1,13 @@
+<ink xmlns="http://www.w3.org/2003/InkML">
+  <annotation type="label">i</annotation>
+  <annotation type="splitTagOriginal">symbols</annotation>
+  <annotation type="inkCreationMethod">human</annotation>
+  <annotation type="sampleId">00af9f69174396d2</annotation>
+  <traceFormat>
+    <channel name="X" type="decimal" />
+    <channel name="Y" type="decimal" />
+    <channel name="T" type="decimal" units="ms" />
+  </traceFormat>
+  <trace id="0">1319.00 423.00 2021.0,1326.00 451.00 2073.0,1330.00 461.00 2081.0,1332.70 466.95 2084.0,1336.00 474.00 2088.0,1343.00 485.00 2096.0,1348.20 492.44 2101.0,1357.00 505.00 2110.0,1363.90 510.88 2118.0,1364.00 511.00 2133.0</trace>
+  <trace id="1">1413.00 384.00 2222.0,1413.00 384.00 2297.0</trace>
+</ink>

@@ -1,25 +1,28 @@
+from collections.abc import Callable
 from pathlib import Path
-import torch
-from torch.utils.data.dataset import Dataset
-from torch import Tensor
-from typing import Callable, Final
+from typing import Final
 
-from .ink_data import InkData
+import torch
+from torch import Tensor
+from torch.utils.data.dataset import Dataset
+
 from ..utils import LatexVocab
+from .ink_data import InkData
 
 
 class HMEDataset(Dataset):
     """Handwritten Mathematical Expressions dataset for processing
     `.inkml` files
     """
+
     EPS: Final[float] = 1e-6
 
     def __init__(
-                self,
-                root: Path | str,
-                vocab: LatexVocab | None = None,
-                transform: Callable[[Tensor], Tensor] | None = None,
-            ):
+        self,
+        root: Path | str,
+        vocab: LatexVocab | None = None,
+        transform: Callable[[Tensor], Tensor] | None = None,
+    ):
         """Creates the dataset
 
         Parameters
@@ -33,7 +36,7 @@ class HMEDataset(Dataset):
         """
 
         self.root = Path(root)
-        self.filenames = sorted(self.root.rglob('*.inkml'))
+        self.filenames = sorted(self.root.rglob("*.inkml"))
 
         self.vocab = LatexVocab.default() if vocab is None else vocab
         self.transform = transform
@@ -86,12 +89,15 @@ class HMEDataset(Dataset):
 
         is_stroke_start = (~same_trace_prev).float()
 
-        return torch.cat([
-            xyt,
-            d_xyt,
-            dynamics,
-            is_stroke_start.unsqueeze(1),
-        ], dim=1)
+        return torch.cat(
+            [
+                xyt,
+                d_xyt,
+                dynamics,
+                is_stroke_start.unsqueeze(1),
+            ],
+            dim=1,
+        )
 
     @staticmethod
     def _flatten_traces(traces: list) -> tuple[Tensor, Tensor]:
@@ -103,13 +109,9 @@ class HMEDataset(Dataset):
         traces : Traces
             List of Trace elements obtained from `InkData.traces`
         """
-        xyt = torch.cat(
-            [torch.as_tensor(t, dtype=torch.float32) for t in traces],
-            dim=0
-        )
+        xyt = torch.cat([torch.as_tensor(t, dtype=torch.float32) for t in traces], dim=0)
         trace_idxs = torch.repeat_interleave(
-            torch.arange(len(traces)),
-            torch.as_tensor([len(t) for t in traces], dtype=torch.int64)
+            torch.arange(len(traces)), torch.as_tensor([len(t) for t in traces], dtype=torch.int64)
         )
         return xyt, trace_idxs
 
@@ -217,8 +219,11 @@ class HMEDataset(Dataset):
             torch.zeros_like(dspeed),
         )
 
-        return torch.cat([
-            speed.unsqueeze(1),
-            curve.unsqueeze(1),
-            acc_tan.unsqueeze(1),
-        ], dim=1)
+        return torch.cat(
+            [
+                speed.unsqueeze(1),
+                curve.unsqueeze(1),
+                acc_tan.unsqueeze(1),
+            ],
+            dim=1,
+        )

@@ -1,0 +1,13 @@
+<ink xmlns="http://www.w3.org/2003/InkML">
+  <annotation type="label">p</annotation>
+  <annotation type="splitTagOriginal">symbols</annotation>
+  <annotation type="inkCreationMethod">human</annotation>
+  <annotation type="sampleId">0254dc96046f7c35</annotation>
+  <traceFormat>
+    <channel name="X" type="decimal" />
+    <channel name="Y" type="decimal" />
+    <channel name="T" type="decimal" units="ms" />
+  </traceFormat>
+  <trace id="0">353.72 234.32 2506.0,352.72 240.31 2568.0,350.73 251.30 2581.0,348.28 264.33 2591.0,342.73 282.26 2606.0,338.74 293.24 2618.0,336.88 298.33 2624.0,334.28 303.87 2640.0,332.74 308.22 2656.0,332.74 311.07 2680.0</trace>
+  <trace id="1">356.72 238.32 2805.0,362.72 238.32 2868.0,370.71 238.32 2880.0,374.55 238.32 2886.0,379.70 239.31 2893.0,382.70 245.31 2917.0,379.70 249.30 2930.0,373.71 253.30 2942.0,367.82 255.50 2952.0,358.72 259.29 2967.0,351.73 260.29 2980.0,346.73 260.29 2992.0,346.73 260.29 3004.0</trace>
+</ink>
