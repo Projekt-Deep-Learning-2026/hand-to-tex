@@ -20,6 +20,7 @@ class HMEDataset(Dataset):
     def __init__(
         self,
         root: Path | str,
+        split: str,
         vocab: LatexVocab | None = None,
         transform: Callable[[Tensor], Tensor] | None = None,
     ):
@@ -34,9 +35,10 @@ class HMEDataset(Dataset):
         transform : (Callable: `Tensor` -> `Tensor`) | None
             Optional transformation applied to features before returning.
         """
-
-        self.root = Path(root)
-        self.filenames = sorted(self.root.rglob("*.inkml"))
+        self.data_path = Path(root, split)
+        self.root = root
+        self.split = split
+        self.filenames = sorted(self.data_path.rglob("*.inkml"))
 
         self.vocab = LatexVocab.default() if vocab is None else vocab
         self.transform = transform
@@ -45,7 +47,7 @@ class HMEDataset(Dataset):
         return len(self.filenames)
 
     def __repr__(self) -> str:
-        return f"HMEDataset(root={self.root!r}, n_samples={len(self)})"
+        return f"HMEDataset(root={self.root!r}, split={self.split}, n_samples={len(self)})"
 
     def __getitem__(self, idx: int) -> tuple[Tensor, Tensor]:
         ink = InkData.load(self.filenames[idx])
