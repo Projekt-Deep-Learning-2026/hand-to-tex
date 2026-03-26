@@ -21,11 +21,11 @@ class TestLatexVocabEncodeDecode:
 
     def test_encode_unknown_returns_unknown_id(self, vocab: LatexVocab):
         """Unknown tokens return UNK token id."""
-        assert vocab.encode('NONEXISTENT') == vocab.UNK
+        assert vocab.encode("NONEXISTENT") == vocab.UNK
 
     def test_decode_invalid_id(self, vocab: LatexVocab):
         """Invalid IDs return '<UNK>' token."""
-        assert vocab.decode(-1) == '<UNK>'
+        assert vocab.decode(-1) == "<UNK>"
 
     def test_encode_decode_roundtrip(self, vocab: LatexVocab):
         """Encoding then decoding returns original token."""

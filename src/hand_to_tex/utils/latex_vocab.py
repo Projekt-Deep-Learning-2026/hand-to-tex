@@ -52,7 +52,7 @@ class LatexVocab:
     PAD: int
     UNK: int
     # Required special-token strings that must exist in every vocab file.
-    required_keys = frozenset(['<EOS>', '<SOS>', '<PAD>', '<UNK>'])
+    required_keys = frozenset(["<EOS>", "<SOS>", "<PAD>", "<UNK>"])
 
     # Regex for LaTeX command tokenization.
     # Source: https://arxiv.org/pdf/2404.10690 (CROHME dataset paper)
@@ -107,18 +107,20 @@ class LatexVocab:
         _decode = dict(enumerate(token_list))
 
         if not LatexVocab.required_keys.issubset(token_list):
-            raise ValueError(f"Provided vocab at: {path} doesn't contain \
-                            required tokens {str(LatexVocab.required_keys)}")
+            raise ValueError(
+                f"Provided vocab at: {path} doesn't contain \
+                            required tokens {str(LatexVocab.required_keys)}"
+            )
         else:
-            EOS, SOS = _encode['<EOS>'], _encode['<SOS>']
-            PAD, UNK = _encode['<PAD>'], _encode['<UNK>']
+            EOS, SOS = _encode["<EOS>"], _encode["<SOS>"]
+            PAD, UNK = _encode["<PAD>"], _encode["<UNK>"]
 
         return LatexVocab(tokens, _encode, _decode, EOS, SOS, PAD, UNK)
 
     @staticmethod
     def default() -> LatexVocab:
         """Initialise LatexVocab using default vocab.json."""
-        return LatexVocab.load(Path('data/assets/vocab.json'))
+        return LatexVocab.load(Path("data/assets/vocab.json"))
 
     def encode(self, token: str) -> int:
         """Convert a single token to its integer ID.
@@ -148,7 +150,7 @@ class LatexVocab:
         str
             Token string, or `<UNK>` if ID not in vocabulary.
         """
-        return self._decode.get(token_id, '<UNK>')
+        return self._decode.get(token_id, "<UNK>")
 
     def encode_expr(self, expr: str) -> list[int]:
         """Tokenize and encode a LaTeX expression to a list of token IDs.
@@ -180,7 +182,7 @@ class LatexVocab:
             else:
                 t = expr[0]
             tokens.append(t)
-            expr = expr[len(t):]
+            expr = expr[len(t) :]
 
         return [self.encode(t) for t in tokens]
 
