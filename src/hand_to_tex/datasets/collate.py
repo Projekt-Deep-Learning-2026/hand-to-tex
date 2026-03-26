@@ -1,7 +1,7 @@
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 
-from hand_to_tex.utils.latex_vocab import LatexVocab
+from hand_to_tex.utils import LatexVocab
 
 
 class HMECollateFunction:
