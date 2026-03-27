@@ -42,9 +42,10 @@ The dataset is organized into several directories, each serving a specific purpo
 ### Download Data
 To download the dataset, use the provided script. You can either download a small excerpt (~1.5 MB) for development:
 ```bash
-uv run get-data
+uv run htt-get-data
 ```
+
 or use the `--full` flag to download the complete dataset (~2.9 GB):
 ```bash
-uv run get-data --full
+uv run htt-get-data --full
 ```
