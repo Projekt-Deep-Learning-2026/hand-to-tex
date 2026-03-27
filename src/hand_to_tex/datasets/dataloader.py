@@ -10,7 +10,16 @@ from hand_to_tex.utils import LatexVocab
 
 
 class HMEDataLoaderFactory:
-    """Fabric class for initialization of HME dataset dataloaders"""
+    """Fabric class for initialization of HME dataset dataloaders
+
+    Examples
+    --------
+    >>> from pathlib import Path
+    >>> factory = HMEDataLoaderFactory(root="data/sample", batch_size=32)
+    >>> train_loader = factory.train()
+    >>> for batch in train_loader:
+    ...     break  # Process batch
+    """
 
     def __init__(
         self,
@@ -35,6 +44,19 @@ class HMEDataLoaderFactory:
         ----------
         transform : (Callable: `Tensor` -> `Tensor`) | None
             Transform method passed to HMEDataset
+
+        Returns
+        -------
+        DataLoader
+            DataLoader for training data with shuffling and drop_last=True
+
+        Examples
+        --------
+        >>> factory = HMEDataLoaderFactory(root="data/sample")
+        >>> train_loader = factory.train()
+        >>> for images, labels in train_loader:
+        ...     # Process training batch
+        ...     pass
         """
         dataset = HMEDataset(root=self.root, split="train", vocab=self.vocab, transform=transform)
 
@@ -55,6 +77,19 @@ class HMEDataLoaderFactory:
         ----------
         transform : (Callable: `Tensor` -> `Tensor`) | None
             Transform method passed to HMEDataset
+
+        Returns
+        -------
+        DataLoader
+            DataLoader for validation data without shuffling and drop_last=False
+
+        Examples
+        --------
+        >>> factory = HMEDataLoaderFactory(root="data/sample")
+        >>> valid_loader = factory.valid()
+        >>> for images, labels in valid_loader:
+        ...     # Evaluate on validation batch
+        ...     pass
         """
         dataset = HMEDataset(root=self.root, split="valid", vocab=self.vocab, transform=transform)
 
@@ -75,6 +110,19 @@ class HMEDataLoaderFactory:
         ----------
         transform : (Callable: `Tensor` -> `Tensor`) | None
             Transform method passed to HMEDataset
+
+        Returns
+        -------
+        DataLoader
+            DataLoader for test data without shuffling and drop_last=False
+
+        Examples
+        --------
+        >>> factory = HMEDataLoaderFactory(root="data/sample")
+        >>> test_loader = factory.test()
+        >>> for images, labels in test_loader:
+        ...     # Run inference on test batch
+        ...     pass
         """
         dataset = HMEDataset(root=self.root, split="test", vocab=self.vocab, transform=transform)
 
@@ -104,6 +152,19 @@ class HMEDataLoaderFactory:
             Transform method passed to HMEDataset
         **kwargs
             Additional keyword arguments forwarded to `torch.utils.data.DataLoader`
+
+        Returns
+        -------
+        DataLoader
+            Configured DataLoader for the specified split
+
+        Examples
+        --------
+        >>> factory = HMEDataLoaderFactory(root="data/sample")
+        >>> # Create custom dataloader with custom batch size
+        >>> custom_loader = factory.custom("train", batch_size=64, num_workers=8)
+        >>> # Create dataloader for custom split
+        >>> custom_split_loader = factory.custom("custom_split")
         """
         split_name = split.lower()
         dataset = HMEDataset(

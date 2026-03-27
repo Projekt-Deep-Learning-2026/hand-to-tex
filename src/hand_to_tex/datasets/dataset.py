@@ -6,8 +6,8 @@ import torch
 from torch import Tensor
 from torch.utils.data.dataset import Dataset
 
-from ..utils import LatexVocab
-from .ink_data import InkData
+from hand_to_tex.datasets.ink_data import InkData
+from hand_to_tex.utils import LatexVocab
 
 
 class HMEDataset(Dataset):
