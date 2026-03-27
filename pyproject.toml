@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "matplotlib>=3.10.8",
+    "tqdm>=4.67.3",
 ]
 
 [dependency-groups]
@@ -14,6 +15,12 @@ dev = [
     "pytest>=9.0.2",
     "ruff>=0.15.7",
 ]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.uv]
+package = true
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
@@ -34,3 +41,6 @@ select = [
 ]
 
 ignore = ["E501"]
+
+[project.scripts]
+htt-get-data = "hand_to_tex.scripts.download_data:main"
