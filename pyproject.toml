@@ -43,4 +43,4 @@ select = [
 ignore = ["E501"]
 
 [project.scripts]
-get-data = "hand_to_tex.scripts.download_data:main"
+htt-get-data = "hand_to_tex.scripts.download_data:main"

@@ -5,6 +5,8 @@ from pathlib import Path
 
 from tqdm import tqdm
 
+CHUNK_SIZE = 8192
+
 
 def download_with_progress(url: str, output_path: Path):
     """Downloads a file from url to output_path with a progress bar."""
@@ -15,10 +17,7 @@ def download_with_progress(url: str, output_path: Path):
             open(output_path, "wb") as f,
             tqdm(total=total_size, unit="B", unit_scale=True, desc=output_path.name) as pbar,
         ):
-            while True:
-                chunk = response.read(8192)
-                if not chunk:
-                    break
+            while chunk := response.read(CHUNK_SIZE):
                 f.write(chunk)
                 pbar.update(len(chunk))
 
@@ -27,12 +26,8 @@ def extract_with_progress(archive_path: Path, dest_dir: Path):
     """Extracts .tgz archive with a progress bar."""
     with tarfile.open(archive_path, "r:gz") as tar:
         members = tar.getmembers()
-        with tqdm(
-            total=len(members), unit="file", desc=f"📂 Extracting {archive_path.name}"
-        ) as pbar:
-            for member in members:
-                tar.extract(member, path=dest_dir, filter="data")
-                pbar.update(1)
+        for member in tqdm(members, unit="file", desc=f"Extracting {archive_path.name}"):
+            tar.extract(member, path=dest_dir, filter="data")
 
 
 def download_data(url: str, dir_name: str = "data"):
