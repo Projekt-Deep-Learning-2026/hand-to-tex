@@ -120,7 +120,7 @@ class TestLoadTrace:
         """Test that trace with no text content returns None."""
         elem = ElementTree.fromstring("<trace/>")
         result = InkData._load_trace(elem)
-        assert result is None
+        assert result == []
 
     def test_load_trace_integer_values_converted_to_float(self):
         """Test that integer-looking values are converted to float."""

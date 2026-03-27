@@ -22,8 +22,14 @@ class LatexVocab:
         Internal mapping from token string to integer ID.
     - _decode : dict[int, str]
         Internal mapping from integer ID to token string.
-    - UNKNOWN : int
-        ID returned for tokens not found in vocabulary. Default is -1.
+    - EOS : int
+        ID of end-of-sequence token `<EOS>`.
+    - SOS : int
+        ID of start-of-sequence token `<SOS>`.
+    - PAD : int
+        ID of padding token `<PAD>`.
+    - UNK : int
+        ID returned for tokens not found in vocabulary (`<UNK>`).
 
     Examples
     --------
@@ -39,6 +45,14 @@ class LatexVocab:
     tokens: dict[str, list[str]]
     _encode: dict[str, int]
     _decode: dict[int, str]
+
+    # IDs of required special tokens for sequence processing.
+    EOS: int
+    SOS: int
+    PAD: int
+    UNK: int
+    # Required special-token strings that must exist in every vocab file.
+    required_keys = frozenset(["<EOS>", "<SOS>", "<PAD>", "<UNK>"])
 
     # Regex for LaTeX command tokenization.
     # Source: https://arxiv.org/pdf/2404.10690 (CROHME dataset paper)
@@ -56,13 +70,14 @@ class LatexVocab:
         + r")"
     )
 
-    UNKNOWN: int = -1
-
     @staticmethod
     def load(path: Path | str) -> LatexVocab:
         """Create a vocabulary with given `.json` file path that contains
         categorised tokens (category_name -> list of tokens).
         For example `'digits' -> [0, 1, 2 ... 8, 9]`
+
+        The loaded vocabulary must contain all required special tokens:
+        `<EOS>`, `<SOS>`, `<PAD>`, `<UNK>`.
 
         Parameters
         ----------
@@ -72,6 +87,10 @@ class LatexVocab:
         Returns
         -------
         LatexVocab object for tokenization-detokenization of latex expressions
+
+        Raises
+        ------
+        ValueError if any of the required keys are missing
         """
         with open(path) as f:
             data = json.load(f)
@@ -87,12 +106,21 @@ class LatexVocab:
         _encode = {token: idx for idx, token in enumerate(token_list)}
         _decode = dict(enumerate(token_list))
 
-        return LatexVocab(tokens, _encode, _decode)
+        if not LatexVocab.required_keys.issubset(token_list):
+            raise ValueError(
+                f"Provided vocab at: {path} doesn't contain \
+                            required tokens {str(LatexVocab.required_keys)}"
+            )
+        else:
+            EOS, SOS = _encode["<EOS>"], _encode["<SOS>"]
+            PAD, UNK = _encode["<PAD>"], _encode["<UNK>"]
+
+        return LatexVocab(tokens, _encode, _decode, EOS, SOS, PAD, UNK)
 
     @staticmethod
     def default() -> LatexVocab:
         """Initialise LatexVocab using default vocab.json."""
-        return LatexVocab.load(Path(__file__).parent / "vocab.json")
+        return LatexVocab.load(Path("data/assets/vocab.json"))
 
     def encode(self, token: str) -> int:
         """Convert a single token to its integer ID.
@@ -105,11 +133,11 @@ class LatexVocab:
         Returns
         -------
         int
-            Integer ID of the token, or UNKNOWN (-1) if not in vocabulary.
+            Integer ID of the token, or `UNK` ID if not in vocabulary.
         """
-        return self._encode.get(token, self.UNKNOWN)
+        return self._encode.get(token, self.UNK)
 
-    def decode(self, token_id: int) -> str | None:
+    def decode(self, token_id: int) -> str:
         """Convert an integer ID to its token string.
 
         Parameters
@@ -119,10 +147,10 @@ class LatexVocab:
 
         Returns
         -------
-        str | None
-            Token string, or None if ID not in vocabulary.
+        str
+            Token string, or `<UNK>` if ID not in vocabulary.
         """
-        return self._decode.get(token_id)
+        return self._decode.get(token_id, "<UNK>")
 
     def encode_expr(self, expr: str) -> list[int]:
         """Tokenize and encode a LaTeX expression to a list of token IDs.
@@ -158,7 +186,7 @@ class LatexVocab:
 
         return [self.encode(t) for t in tokens]
 
-    def decode_sequence(self, token_ids: list[int]) -> list[str | None]:
+    def decode_sequence(self, token_ids: list[int]) -> list[str]:
         """Decode a list of token IDs to token strings.
 
         Parameters
@@ -168,7 +196,7 @@ class LatexVocab:
 
         Returns
         -------
-        list[str | None]
-            List of token strings. Unknown IDs are decoded as None.
+        list[str]
+            List of token strings. Unknown IDs are decoded as `<UNK>`.
         """
         return [self.decode(t_id) for t_id in token_ids]

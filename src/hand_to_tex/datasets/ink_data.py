@@ -114,7 +114,7 @@ class InkData:
             return None
 
     @staticmethod
-    def _load_trace(elem: ElementTree.Element) -> list[TracePoint] | None:
+    def _load_trace(elem: ElementTree.Element) -> list[TracePoint]:
         """Parse a `trace` element into a list of `(x, y, t)` points.
 
         Parameters
@@ -129,13 +129,13 @@ class InkData:
         """
 
         if (txt := elem.text) is None:
-            return None
+            return []
         trace = []
         for point in txt.split(","):
             x, y, t = map(float, point.split())
             trace.append((x, y, t))
 
-        return None if trace == [] else trace
+        return trace
 
     def to_fig(
         self,
