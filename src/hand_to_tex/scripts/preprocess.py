@@ -11,6 +11,9 @@ from hand_to_tex.datasets import HMEDataset, InkData
 from hand_to_tex.utils import LatexVocab
 
 BATCH_SIZE = 10000
+SPLITS = ["train", "valid", "test", "symbols"]
+DATASET_PATH = Path("./data/mathwriting-2024")
+VOCAB_PATH = Path("./data/assets/vocab.json")
 
 
 def _process_single_file(
@@ -86,7 +89,6 @@ def preprocess_split(root: Path, split_name: str, vocab: LatexVocab, num_workers
         print(f"Saving to {out_file_path}")
         for temp in temp_files:
             final_data.extend(torch.load(temp, weights_only=True))
-            temp.unlink()
 
         torch.save(final_data, out_file_path)
 
@@ -99,7 +101,7 @@ def preprocess_split(root: Path, split_name: str, vocab: LatexVocab, num_workers
     finally:
         for temp in tqdm(temp_files, "Cleaning temp files"):
             temp.unlink()
-        print(f"Aborted succesfully, cleaned {len(temp_files)} files")
+        print(f"Cleaned {len(temp_files)} temp files succesfully")
 
 
 def main():
@@ -108,13 +110,15 @@ def main():
         "--root",
         type=str,
         required=False,
-        help="Path to dataset containing all .inkml files (contains train, valid, test), default=data/mathwriting-2024",
+        default=DATASET_PATH,
+        help=f"Path to dataset containing all splits with .inkml files, default={DATASET_PATH}",
     )
     parser.add_argument(
         "--vocab",
         type=str,
         required=False,
-        help="Path to .json file containing vocabulary mapping for latex symbols, default=data/assets/vocab.json",
+        default=VOCAB_PATH,
+        help=f"Path to .json file containing vocabulary mapping for latex symbols, default={VOCAB_PATH}",
     )
     parser.add_argument(
         "--threads",
@@ -122,13 +126,20 @@ def main():
         default=1,
         help="Number of workers (processes) to use for preprocessing, default=1",
     )
+    parser.add_argument(
+        "--splits",
+        nargs="+",
+        choices=SPLITS,
+        default=SPLITS,
+        help=f"List of splits to preprocess, choices are: {', '.join(SPLITS)}, by default all splits will be preprocessed",
+    )
     args = parser.parse_args()
 
-    root = Path("data/mathwriting-2024" if args.root is None else args.root)
-    vocab = LatexVocab.default() if args.vocab is None else LatexVocab.load(args.vocab)
+    root = Path(args.root)
+    vocab = LatexVocab.load(args.vocab)
 
-    splits = ["valid", "test"]
-    for split in splits:
+    print(f"Preprocessing splits: {', '.join(args.splits)}")
+    for split in args.splits:
         preprocess_split(root, split, vocab, args.threads)
 
 
