@@ -68,9 +68,9 @@ class TestHMEDataLoaderFactory:
         assert padded_ft.ndim == 3
         assert padded_ft.shape[0] == 1  # batch size
         assert padded_ft.shape[2] == 10  # feature dim
-        assert isinstance(ft_lengths, list)
+        assert isinstance(ft_lengths, torch.Tensor)
         assert padded_ts.dtype == torch.long
-        assert isinstance(ts_lengths, list)
+        assert isinstance(ts_lengths, torch.Tensor)
 
     def test_transform_applied_in_loader(self, tmp_path: Path, sample_inkml: Path, vocab):
         root = _prepare_splits_with_sample(tmp_path, sample_inkml)
