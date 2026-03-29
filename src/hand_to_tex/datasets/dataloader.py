@@ -17,8 +17,9 @@ class HMEDataLoaderFactory:
     >>> from pathlib import Path
     >>> factory = HMEDataLoaderFactory(root="data/sample", batch_size=32)
     >>> train_loader = factory.train()
+    >>> valid_loader = factory.valid()
     >>> for batch in train_loader:
-    ...     break  # Process batch
+    ...     # Process batch
     """
 
     def __init__(
@@ -50,13 +51,6 @@ class HMEDataLoaderFactory:
         DataLoader
             DataLoader for training data with shuffling and drop_last=True
 
-        Examples
-        --------
-        >>> factory = HMEDataLoaderFactory(root="data/sample")
-        >>> train_loader = factory.train()
-        >>> for images, labels in train_loader:
-        ...     # Process training batch
-        ...     pass
         """
         dataset = HMEDatasetRaw(
             root=self.root, split="train", vocab=self.vocab, transform=transform
@@ -85,13 +79,6 @@ class HMEDataLoaderFactory:
         DataLoader
             DataLoader for validation data without shuffling and drop_last=False
 
-        Examples
-        --------
-        >>> factory = HMEDataLoaderFactory(root="data/sample")
-        >>> valid_loader = factory.valid()
-        >>> for images, labels in valid_loader:
-        ...     # Evaluate on validation batch
-        ...     pass
         """
         dataset = HMEDatasetRaw(
             root=self.root, split="valid", vocab=self.vocab, transform=transform
@@ -119,14 +106,6 @@ class HMEDataLoaderFactory:
         -------
         DataLoader
             DataLoader for test data without shuffling and drop_last=False
-
-        Examples
-        --------
-        >>> factory = HMEDataLoaderFactory(root="data/sample")
-        >>> test_loader = factory.test()
-        >>> for images, labels in test_loader:
-        ...     # Run inference on test batch
-        ...     pass
         """
         dataset = HMEDatasetRaw(root=self.root, split="test", vocab=self.vocab, transform=transform)
 
@@ -161,14 +140,6 @@ class HMEDataLoaderFactory:
         -------
         DataLoader
             Configured DataLoader for the specified split
-
-        Examples
-        --------
-        >>> factory = HMEDataLoaderFactory(root="data/sample")
-        >>> # Create custom dataloader with custom batch size
-        >>> custom_loader = factory.custom("train", batch_size=64, num_workers=8)
-        >>> # Create dataloader for custom split
-        >>> custom_split_loader = factory.custom("custom_split")
         """
         split_name = split.lower()
         dataset = HMEDatasetRaw(
