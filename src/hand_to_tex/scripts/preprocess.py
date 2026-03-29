@@ -8,7 +8,7 @@ from typing import Literal
 import torch
 from tqdm import tqdm
 
-from hand_to_tex.datasets import HMEDataset, InkData
+from hand_to_tex.datasets import HMEDatasetRaw, InkData
 from hand_to_tex.utils import LatexVocab
 
 BATCH_SIZE = 10000
@@ -26,7 +26,7 @@ def _process_single_file(
     """Process single .inkml file, return status and pair (features, tokens)"""
     try:
         ink = InkData.load(pth)
-        fts = HMEDataset.extract_features(ink)
+        fts = HMEDatasetRaw.extract_features(ink)
 
         if fts.size(0) == 0:
             return "empty", None

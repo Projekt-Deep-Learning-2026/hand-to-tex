@@ -5,7 +5,7 @@ from torch import Tensor
 from torch.utils.data.dataloader import DataLoader
 
 from hand_to_tex.datasets.collate import HMECollateFunction
-from hand_to_tex.datasets.dataset import HMEDataset
+from hand_to_tex.datasets.dataset import HMEDatasetRaw
 from hand_to_tex.utils import LatexVocab
 
 
@@ -58,7 +58,9 @@ class HMEDataLoaderFactory:
         ...     # Process training batch
         ...     pass
         """
-        dataset = HMEDataset(root=self.root, split="train", vocab=self.vocab, transform=transform)
+        dataset = HMEDatasetRaw(
+            root=self.root, split="train", vocab=self.vocab, transform=transform
+        )
 
         return DataLoader(
             dataset=dataset,
@@ -76,7 +78,7 @@ class HMEDataLoaderFactory:
         Parameters
         ----------
         transform : (Callable: `Tensor` -> `Tensor`) | None
-            Transform method passed to HMEDataset
+            Transform method passed to HMEDatasetRaw
 
         Returns
         -------
@@ -91,7 +93,9 @@ class HMEDataLoaderFactory:
         ...     # Evaluate on validation batch
         ...     pass
         """
-        dataset = HMEDataset(root=self.root, split="valid", vocab=self.vocab, transform=transform)
+        dataset = HMEDatasetRaw(
+            root=self.root, split="valid", vocab=self.vocab, transform=transform
+        )
 
         return DataLoader(
             dataset=dataset,
@@ -109,7 +113,7 @@ class HMEDataLoaderFactory:
         Parameters
         ----------
         transform : (Callable: `Tensor` -> `Tensor`) | None
-            Transform method passed to HMEDataset
+            Transform method passed to HMEDatasetRaw
 
         Returns
         -------
@@ -124,7 +128,7 @@ class HMEDataLoaderFactory:
         ...     # Run inference on test batch
         ...     pass
         """
-        dataset = HMEDataset(root=self.root, split="test", vocab=self.vocab, transform=transform)
+        dataset = HMEDatasetRaw(root=self.root, split="test", vocab=self.vocab, transform=transform)
 
         return DataLoader(
             dataset=dataset,
@@ -149,7 +153,7 @@ class HMEDataLoaderFactory:
         split : str
             Dataset split name (e.g. `train`, `valid`, `test`)
         transform : (Callable: `Tensor` -> `Tensor`) | None
-            Transform method passed to HMEDataset
+            Transform method passed to HMEDatasetRaw
         **kwargs
             Additional keyword arguments forwarded to `torch.utils.data.DataLoader`
 
@@ -167,7 +171,7 @@ class HMEDataLoaderFactory:
         >>> custom_split_loader = factory.custom("custom_split")
         """
         split_name = split.lower()
-        dataset = HMEDataset(
+        dataset = HMEDatasetRaw(
             root=self.root, split=split_name, vocab=self.vocab, transform=transform
         )
 
