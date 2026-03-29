@@ -156,17 +156,15 @@ class BaselineTrainer:
         num_epochs : int
             The absolute limit denoting integer passes through the entire structural dataset array.
         """
-        print(f"========== ROZPOCZĘTO SZKOLENIE ({num_epochs} epok) ==========")
+        print(f"========== Training for {num_epochs} epochs ==========")
 
         for epoch in range(num_epochs):
             start_time = time.time()
 
-            print(f"\n[ EPOKA {epoch + 1}/{num_epochs} ]")
+            print(f"\n[ Epoch{epoch + 1}/{num_epochs} ]")
             train_loss = self.train_epoch()
             valid_loss = self.validate()
 
             epoch_time = time.time() - start_time
-            print(f"🎯 Statystyki Epoki: Zakończono po {epoch_time:.2f}s")
-            print(
-                f"📉 Błąd Trenowania (Train Loss): {train_loss:.4f}  |  👀 Błąd Walidacji (Valid Loss): {valid_loss:.4f}"
-            )
+            print(f"Epoch completed in {epoch_time:.2f}s")
+            print(f"Train Loss: {train_loss:.4f}  |  Valid Loss: {valid_loss:.4f}")
