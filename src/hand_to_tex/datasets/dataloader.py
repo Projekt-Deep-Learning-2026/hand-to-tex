@@ -5,7 +5,7 @@ from torch import Tensor
 from torch.utils.data.dataloader import DataLoader
 
 from hand_to_tex.datasets.collate import HMECollateFunction
-from hand_to_tex.datasets.dataset import HMEDatasetRaw
+from hand_to_tex.datasets.dataset import HMEDatasetPreprocessed, HMEDatasetRaw
 from hand_to_tex.utils import LatexVocab
 
 
@@ -25,12 +25,31 @@ class HMEDataLoaderFactory:
     def __init__(
         self,
         root: Path | str,
+        processed: bool,
         vocab: LatexVocab | None = None,
         batch_size: int = 32,
         num_workers: int = 4,
         pin_memory: bool = True,
     ):
+        """Creates a DataLoader factory that can produce HMEDataset dataloaders
+
+        Parameters
+        ----------
+        root : Path | str
+            Path to the directory that contains splits like train, valid, test
+        processed : bool
+            Indicates whether data in `root` is `.inkml` (not processed) `.pt` (processed)
+        vocab : LatexVocab | None
+            Latex vocabulary that will be used, if None then `LatexVocab.default()` will be used
+        batch_size : int
+            batch_size passed to torch `DataLoader`
+        num_workers : int
+            num_workers passed to torch `DataLoader`
+        pin_memory : bool
+            pin_memory passed to torch `DataLoader`
+        """
         self.root = Path(root)
+        self.processed = processed
         self.vocab = LatexVocab.default() if vocab is None else vocab
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -52,9 +71,8 @@ class HMEDataLoaderFactory:
             DataLoader for training data with shuffling and drop_last=True
 
         """
-        dataset = HMEDatasetRaw(
-            root=self.root, split="train", vocab=self.vocab, transform=transform
-        )
+        dataset_type = HMEDatasetPreprocessed if self.processed else HMEDatasetRaw
+        dataset = dataset_type(root=self.root, split="train", vocab=self.vocab, transform=transform)
 
         return DataLoader(
             dataset=dataset,
@@ -80,9 +98,8 @@ class HMEDataLoaderFactory:
             DataLoader for validation data without shuffling and drop_last=False
 
         """
-        dataset = HMEDatasetRaw(
-            root=self.root, split="valid", vocab=self.vocab, transform=transform
-        )
+        dataset_type = HMEDatasetPreprocessed if self.processed else HMEDatasetRaw
+        dataset = dataset_type(root=self.root, split="valid", vocab=self.vocab, transform=transform)
 
         return DataLoader(
             dataset=dataset,
@@ -107,7 +124,8 @@ class HMEDataLoaderFactory:
         DataLoader
             DataLoader for test data without shuffling and drop_last=False
         """
-        dataset = HMEDatasetRaw(root=self.root, split="test", vocab=self.vocab, transform=transform)
+        dataset_type = HMEDatasetPreprocessed if self.processed else HMEDatasetRaw
+        dataset = dataset_type(root=self.root, split="test", vocab=self.vocab, transform=transform)
 
         return DataLoader(
             dataset=dataset,
@@ -142,7 +160,8 @@ class HMEDataLoaderFactory:
             Configured DataLoader for the specified split
         """
         split_name = split.lower()
-        dataset = HMEDatasetRaw(
+        dataset_type = HMEDatasetPreprocessed if self.processed else HMEDatasetRaw
+        dataset = dataset_type(
             root=self.root, split=split_name, vocab=self.vocab, transform=transform
         )
 

@@ -19,25 +19,23 @@ VOCAB_PATH = Path("./data/assets/vocab.json")
 
 def _process_single_file(
     pth: Path, vocab: LatexVocab
-) -> (
-    tuple[Literal["success"], tuple[torch.Tensor, torch.Tensor]]
-    | tuple[Literal["error", "empty"], None]
-):
+) -> tuple[Literal["success", "error", "empty"], tuple[torch.Tensor, torch.Tensor] | None, str]:
     """Process single .inkml file, return status and pair (features, tokens)"""
+    ID = pth.stem
     try:
         ink = InkData.load(pth)
         fts = HMEDatasetRaw.extract_features(ink)
 
         if fts.size(0) == 0:
-            return "empty", None
+            return "empty", None, ID
 
         tokens = vocab.encode_expr(ink.tex_norm)
         tokens = torch.tensor(tokens, dtype=torch.long)
 
-        return "success", (fts, tokens)
+        return "success", (fts, tokens), ID
 
     except Exception as _e:
-        return "error", None
+        return "error", None, ID
 
 
 def preprocess_split(
@@ -71,7 +69,6 @@ def preprocess_split(
     )
 
     temp_files = []
-    processed = []
     empty_cnt, err_cnt = 0, 0
     try:
         with (
@@ -79,15 +76,16 @@ def preprocess_split(
             tqdm(total=len(inkmls), desc=split_name) as pbar,
         ):
             for b_idx, batch_inkmls in enumerate(itertools.batched(inkmls, BATCH_SIZE)):
+                current = {}
                 futures = {
                     executor.submit(_process_single_file, pth, vocab): pth for pth in batch_inkmls
                 }
                 for future in concurrent.futures.as_completed(futures):
-                    status, res = future.result()
+                    status, res, ID = future.result()
                     match status:
                         case "success":
                             fts, ts = res[0].clone(), res[1].clone()  # type: ignore
-                            processed.append((fts, ts))
+                            current[ID] = (fts, ts)
                         case "empty":
                             empty_cnt += 1
                         case "error":
@@ -95,9 +93,8 @@ def preprocess_split(
                     pbar.update(1)
 
                 temp_path = out_dir / f"{split_name}_temp_{b_idx}.pt"
-                torch.save(processed, temp_path)
+                torch.save([v for _k, v in sorted(current.items())], temp_path)
                 temp_files.append(temp_path)
-                processed = []
 
         out_file_path = Path(out_dir, split_name + ".pt")
         final_data = []

@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from collections.abc import Callable
 from pathlib import Path
 from typing import Final
@@ -10,7 +11,7 @@ from hand_to_tex.datasets.ink_data import InkData
 from hand_to_tex.utils import LatexVocab
 
 
-class HMEDatasetBase(Dataset):
+class _HMEDatasetBase(Dataset, ABC):
     """Base class for Handwritten Math Expressions dataset"""
 
     EPS: Final[float] = 1e-6
@@ -41,14 +42,13 @@ class HMEDatasetBase(Dataset):
         self.vocab = LatexVocab.default() if vocab is None else vocab
         self.transform = transform
 
+    @abstractmethod
     def __len__(self) -> int:
-        raise NotImplementedError
+        pass
 
-    def __repr__(self) -> str:
-        return f"HMEDataset(root={self.root!r}, split={self.split}, n_samples={len(self)})"
-
+    @abstractmethod
     def __getitem__(self, _idx: int):
-        raise NotImplementedError
+        pass
 
     @staticmethod
     def extract_features(ink: InkData) -> Tensor:
@@ -79,13 +79,13 @@ class HMEDatasetBase(Dataset):
 
         trace_lengths = [trace.shape[0] for trace in traces]
         all_points = torch.cat(traces, dim=0)
-        all_points = HMEDatasetBase._normalise_data(all_points)
+        all_points = _HMEDatasetBase._normalise_data(all_points)
         norm_traces = all_points.split(trace_lengths)
 
         features_per_trace = []
         for trace in norm_traces:
-            d_xyt = HMEDatasetBase._trace_deltas(trace)
-            dynamics = HMEDatasetBase._trace_dynamics(d_xyt)
+            d_xyt = _HMEDatasetBase._trace_deltas(trace)
+            dynamics = _HMEDatasetBase._trace_dynamics(d_xyt)
 
             is_stroke_start = torch.zeros(trace.shape[0], dtype=torch.float32, device=trace.device)
             is_stroke_start[0] = 1.0
@@ -124,7 +124,7 @@ class HMEDatasetBase(Dataset):
         xy_max = xyt[:, :2].max(dim=0, keepdim=True).values
         t0 = xyt[:, 2:3].min(dim=0, keepdim=True).values
 
-        xy_range = (xy_max - xy_min).max() + HMEDatasetBase.EPS
+        xy_range = (xy_max - xy_min).max() + _HMEDatasetBase.EPS
         xy_norm = (xyt[:, :2] - xy_min) / xy_range
         t_norm = xyt[:, 2:3] - t0
 
@@ -162,18 +162,18 @@ class HMEDatasetBase(Dataset):
         dist = torch.hypot(dx, dy)
 
         speed = torch.where(
-            dt > HMEDatasetBase.EPS,
+            dt > _HMEDatasetBase.EPS,
             dist / dt,
             torch.zeros_like(dist),
         )
 
         ux = torch.where(
-            dist > HMEDatasetBase.EPS,
+            dist > _HMEDatasetBase.EPS,
             dx / dist,
             torch.zeros_like(dx),
         )
         uy = torch.where(
-            dist > HMEDatasetBase.EPS,
+            dist > _HMEDatasetBase.EPS,
             dy / dist,
             torch.zeros_like(dy),
         )
@@ -184,7 +184,7 @@ class HMEDatasetBase(Dataset):
 
         curve = torch.zeros_like(dist)
         curve[1:] = torch.where(
-            dist[1:] > HMEDatasetBase.EPS,
+            dist[1:] > _HMEDatasetBase.EPS,
             dtheta / dist[1:],
             torch.zeros_like(dtheta),
         )
@@ -192,7 +192,7 @@ class HMEDatasetBase(Dataset):
         dspeed = torch.zeros_like(speed)
         dspeed[1:] = speed[1:] - speed[:-1]
         acc_tan = torch.where(
-            dt > HMEDatasetBase.EPS,
+            dt > _HMEDatasetBase.EPS,
             dspeed / dt,
             torch.zeros_like(dspeed),
         )
@@ -207,7 +207,7 @@ class HMEDatasetBase(Dataset):
         )
 
 
-class HMEDatasetRaw(HMEDatasetBase):
+class HMEDatasetRaw(_HMEDatasetBase):
     """HME Dataset that operates on raw .inkml files"""
 
     def __init__(
@@ -229,7 +229,7 @@ class HMEDatasetRaw(HMEDatasetBase):
 
     def __getitem__(self, idx: int) -> tuple[Tensor, Tensor]:
         ink = InkData.load(self.filenames[idx])
-        features = HMEDatasetBase.extract_features(ink)
+        features = _HMEDatasetBase.extract_features(ink)
         truth = ink.tex_norm
         tokens = self.vocab.encode_expr(truth)
 
@@ -239,7 +239,7 @@ class HMEDatasetRaw(HMEDatasetBase):
         return features, torch.tensor(tokens, dtype=torch.long)
 
 
-class HMEDatasetPreprocessed(HMEDatasetBase):
+class HMEDatasetPreprocessed(_HMEDatasetBase):
     """HME Dataset that operates on preprocessed data stored in .pt"""
 
     def __init__(
@@ -258,8 +258,3 @@ class HMEDatasetPreprocessed(HMEDatasetBase):
 
     def __getitem__(self, idx: int) -> tuple[Tensor, Tensor]:
         return self.data[idx]
-
-
-if __name__ == "__main__":
-    dlr = HMEDatasetRaw("data/mathwriting-2024-excerpt", "train")
-    print(dlr[1])
