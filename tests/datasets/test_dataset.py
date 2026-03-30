@@ -2,7 +2,7 @@ from pathlib import Path
 
 import torch
 
-from hand_to_tex.datasets.dataset import HMEDatasetRaw
+from hand_to_tex.datasets.dataset import HMEDataset
 from hand_to_tex.datasets.ink_data import InkData
 
 
@@ -23,7 +23,7 @@ class TestHMEDataset:
             sample_inkml.read_text(encoding="utf-8"), encoding="utf-8"
         )
 
-        dataset = HMEDatasetRaw(root=root, split="train", vocab=vocab)
+        dataset = HMEDataset(root=root, split="train", vocab=vocab)
 
         assert len(dataset) == 2
 
@@ -32,7 +32,7 @@ class TestHMEDataset:
     ):
         root = _prepare_split_with_sample(tmp_path, "train", sample_inkml)
 
-        dataset = HMEDatasetRaw(root=root, split="train", vocab=vocab)
+        dataset = HMEDataset(root=root, split="train", vocab=vocab)
         features, tokens = dataset[0]
 
         assert features.ndim == 2
@@ -47,10 +47,10 @@ class TestHMEDataset:
         def double_transform(x: torch.Tensor) -> torch.Tensor:
             return x * 2
 
-        dataset = HMEDatasetRaw(root=root, split="train", vocab=vocab, transform=double_transform)
+        dataset = HMEDataset(root=root, split="train", vocab=vocab, transform=double_transform)
         features_transformed, _ = dataset[0]
 
-        dataset_no_transform = HMEDatasetRaw(root=root, split="train", vocab=vocab)
+        dataset_no_transform = HMEDataset(root=root, split="train", vocab=vocab)
         features_original, _ = dataset_no_transform[0]
 
         assert torch.allclose(features_transformed, features_original * 2)
@@ -66,7 +66,7 @@ class TestExtractFeatures:
             traces=[],
         )
 
-        features = HMEDatasetRaw.extract_features(ink)
+        features = HMEDataset.extract_features(ink)
 
         assert features.shape == (0, 10)
         assert features.dtype == torch.float32
@@ -80,7 +80,7 @@ class TestExtractFeatures:
             traces=[[(5.0, 5.0, 0.0)]],
         )
 
-        features = HMEDatasetRaw.extract_features(ink)
+        features = HMEDataset.extract_features(ink)
 
         assert features.shape == (1, 10)
         # dx, dy, dt, speed, curve, acc_tan should be 0
@@ -100,7 +100,7 @@ class TestExtractFeatures:
             ],
         )
 
-        features = HMEDatasetRaw.extract_features(ink)
+        features = HMEDataset.extract_features(ink)
 
         assert features.shape == (5, 10)
         is_stroke_start = features[:, 9]
@@ -119,7 +119,7 @@ class TestExtractFeatures:
             ],
         )
 
-        features = HMEDatasetRaw.extract_features(ink)
+        features = HMEDataset.extract_features(ink)
 
         x_norm = features[:, 0]
         y_norm = features[:, 1]
@@ -141,7 +141,7 @@ class TestExtractFeatures:
             ],
         )
 
-        features = HMEDatasetRaw.extract_features(ink)
+        features = HMEDataset.extract_features(ink)
 
         # After normalization: x goes from 0 to 1 in 2 steps
         dx = features[:, 3]

@@ -1,4 +1,3 @@
-import torch
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 
@@ -16,7 +15,9 @@ class HMECollateFunction:
         """
         self.pad_idx = vocab.PAD
 
-    def __call__(self, batch: list[tuple[Tensor, Tensor]]) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    def __call__(
+        self, batch: list[tuple[Tensor, Tensor]]
+    ) -> tuple[Tensor, list[int], Tensor, list[int]]:
         """Collate a list of variable-length samples into padded batch tensors.
 
         Parameters
@@ -28,7 +29,7 @@ class HMECollateFunction:
 
         Returns
         -------
-        tuple[Tensor, Tensor, Tensor, Tensor]
+        tuple[Tensor, list[int], Tensor, list[int]]
             A 4-element tuple:
             - `padded_ft`: tensor `(B, max_T_feat, F)` padded with `0.0`
             - `ft_lengths`: original feature lengths for each sample
@@ -39,8 +40,8 @@ class HMECollateFunction:
         features = [ft for ft, _ts in batch]
         tokens = [ts for _ft, ts in batch]
 
-        ft_lengths = torch.tensor([f.size(0) for f in features], dtype=torch.long)
-        ts_lengths = torch.tensor([t.size(0) for t in tokens], dtype=torch.long)
+        ft_lengths = [f.size(0) for f in features]
+        ts_lengths = [t.size(0) for t in tokens]
 
         padded_ft = pad_sequence(features, True, 0.0)
         padded_ts = pad_sequence(tokens, True, self.pad_idx)

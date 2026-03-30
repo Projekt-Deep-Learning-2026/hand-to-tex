@@ -14,7 +14,7 @@ class TestHMECollateFunction:
         padded_ft, ft_lengths, padded_ts, ts_lengths = collate(batch)
 
         assert padded_ft.shape == (2, 5, 10)
-        assert torch.allclose(ft_lengths, torch.tensor([2, 5]))
+        assert ft_lengths == [2, 5]
         # First sample padded with zeros at positions [2:5]
         assert torch.allclose(padded_ft[0, 2:], torch.zeros(3, 10))
         # Second sample has original values
@@ -30,7 +30,7 @@ class TestHMECollateFunction:
         _, _, padded_ts, ts_lengths = collate(batch)
 
         assert padded_ts.shape == (2, 3)
-        assert torch.allclose(ts_lengths, torch.tensor([3, 1]))
+        assert ts_lengths == [3, 1]
         # Second sample padded with PAD token
         assert padded_ts[1, 1].item() == vocab.PAD
         assert padded_ts[1, 2].item() == vocab.PAD
@@ -45,8 +45,8 @@ class TestHMECollateFunction:
 
         assert padded_ft.shape == (1, 7, 10)
         assert padded_ts.shape == (1, 3)
-        assert ft_lengths == torch.tensor([7])
-        assert ts_lengths == torch.tensor([3])
+        assert ft_lengths == [7]
+        assert ts_lengths == [3]
 
     def test_equal_length_sequences_no_padding_needed(self, vocab):
         collate = HMECollateFunction(vocab)

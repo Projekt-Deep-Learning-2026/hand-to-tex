@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class LatexVocab:
     """Vocabulary for tokenization and encoding of LaTeX expressions.
 

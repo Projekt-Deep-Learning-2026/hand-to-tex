@@ -15,7 +15,7 @@ type TracePoint = tuple[float, float, float]
 type Traces = list[list[TracePoint]]
 
 
-@dataclass(frozen=True)
+@dataclass
 class InkData:
     """Representation of a single InkML sample.
 
