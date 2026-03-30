@@ -45,3 +45,4 @@ ignore = ["E501"]
 
 [project.scripts]
 htt-get-data = "hand_to_tex.scripts.download_data:main"
+htt-preprocess = "hand_to_tex.scripts.preprocess:main"
