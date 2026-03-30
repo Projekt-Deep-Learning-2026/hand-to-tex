@@ -149,23 +149,6 @@ class BaselineTransformer(nn.Module):
     def generate_square_subsequent_mask(self, sz: int, device: torch.device) -> Tensor:
         """
         Generates a causal upper-triangular masking matrix for the Transformer Decoder.
-
-        The mask ensures that predictions for position `i` depend only on the known outputs
-        at positions strictly less than `i`, preserving the auto-regressive property
-        of the sequence-to-sequence model and preventing data leakage from the future.
-
-        Parameters
-        ----------
-        sz : int
-            The sequence length size forming the dimensions of the square matrix.
-        device : torch.device
-            The hardware device on which to allocate the masking tensor.
-
-        Returns
-        -------
-        Tensor
-            A tensor of shape (sz, sz) where future tokens are populated with float('-inf')
-            and valid tokens with 0.0, suitable for addition to attention scores.
         """
         mask = (torch.triu(torch.ones(sz, sz, device=device)) == 1).transpose(0, 1)
         mask = mask.float().masked_fill(mask == 0, float("-inf")).masked_fill(mask == 1, 0.0)
@@ -204,7 +187,7 @@ class BaselineTransformer(nn.Module):
         src_encoded = self.input_conv(src_conv)
         src_encoded = src_encoded.permute(0, 2, 1)
 
-        src_lens = torch.tensor(src_lengths, device=src.device, dtype=torch.long)
+        src_lens = torch.as_tensor(src_lengths, device=src.device, dtype=torch.long)
         new_src_lens = (
             (src_lens + 2 * self.input_conv.padding[0] - self.input_conv.kernel_size[0])
             // self.input_conv.stride[0]

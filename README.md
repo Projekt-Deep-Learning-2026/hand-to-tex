@@ -6,7 +6,7 @@ To start working on the code:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/Projekt-Deep-Learning-2026/hand-to-tex.git
+   git clone [https://github.com/Projekt-Deep-Learning-2026/hand-to-tex.git](https://github.com/Projekt-Deep-Learning-2026/hand-to-tex.git)
    cd hand-to-tex
    ```
 
@@ -48,4 +48,31 @@ uv run htt-get-data
 or use the `--full` flag to download the complete dataset (~2.9 GB):
 ```bash
 uv run htt-get-data --full
+```
+
+### Preprocess Data
+To achieve maximum training performance and avoid the overhead of parsing XML `.inkml` files on the fly, this project requires a preprocessing step. The script extracts dynamic handwriting features, tokenizes LaTeX formulas, filters out corrupted or empty samples, and saves the ready-to-use tensors as binary `.pt` files.
+
+Run the preprocessing script using multiple CPU threads to drastically speed up the parsing process:
+```bash
+uv run htt-preprocess --threads 8
+```
+
+#### Available Arguments
+
+* `--root` *(str)*: Path to the raw dataset directory containing the split folders. Default: `data/mathwriting-2024`.
+* `--vocab` *(str)*: Path to the vocabulary JSON file. Default: `data/assets/vocab.json`.
+* `--threads` *(int)*: Number of parallel worker processes. Set this close to your logical CPU core count for optimal speed. Default: `1`.
+* `--splits` *(list[str])*: Specific dataset splits to process. Choices are `train`, `valid`, `test`, `symbols`. Default: `train valid test`.
+
+#### Examples
+
+Process all four dataset splits utilizing 12 CPU threads:
+```bash
+uv run htt-preprocess --threads 12 --splits train valid test symbols
+```
+
+Process only the `symbols` split (useful for debugging or quick testing):
+```bash
+uv run htt-preprocess --threads 4 --splits symbols
 ```

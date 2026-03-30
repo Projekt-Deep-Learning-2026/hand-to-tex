@@ -97,7 +97,7 @@ class BaselineTrainer:
 
             total_loss += loss.item()
 
-            if (batch_idx + 1) % 10 == 0:
+            if (batch_idx + 1) % 100 == 0:
                 print(
                     f"   [Batch {batch_idx + 1}/{len(self.train_loader)}] Loss: {loss.item():.4f}"
                 )
@@ -161,7 +161,7 @@ class BaselineTrainer:
         for epoch in range(num_epochs):
             start_time = time.time()
 
-            print(f"\n[ Epoch{epoch + 1}/{num_epochs} ]")
+            print(f"\n[ Epoch {epoch + 1}/{num_epochs} ]")
             train_loss = self.train_epoch()
             valid_loss = self.validate()
 
