@@ -141,6 +141,9 @@ class BaselineTransformer(nn.Module):
             batch_first=True,
         )
 
+        if hasattr(self.transformer.encoder, "enable_nested_tensor"):
+            self.transformer.encoder.enable_nested_tensor = False
+
         self.out_proj = nn.Linear(d_model, vocab_size)
 
     def generate_square_subsequent_mask(self, sz: int, device: torch.device) -> Tensor:
@@ -217,7 +220,11 @@ class BaselineTransformer(nn.Module):
         tgt_embed = self.target_embed(tgt) * math.sqrt(self.d_model)
         tgt_embed = self.target_pe(tgt_embed)
 
+        src_key_padding_mask = torch.arange(max_len_conv, device=src.device).unsqueeze(0).expand(
+            B, max_len_conv
+        ) >= new_src_lens.unsqueeze(1)
         tgt_key_padding_mask = tgt == self.pad_idx
+
         tgt_mask = self.generate_square_subsequent_mask(T_tok, src.device)
 
         output = self.transformer(
