@@ -19,7 +19,11 @@ dev = [
 ]
 
 [tool.setuptools]
-package-dir = { "" = "src" }
+package-dir = { "" = "src", "scripts" = "scripts" }
+
+[tool.setuptools.packages.find]
+where = ["src", "."]
+include = ["hand_to_tex*", "scripts*"]
 
 [tool.uv]
 package = true
@@ -45,5 +49,5 @@ select = [
 ignore = ["E501"]
 
 [project.scripts]
-htt-get-data = "hand_to_tex.scripts.download_data:main"
-htt-preprocess = "hand_to_tex.scripts.preprocess:main"
+htt-get-data = "scripts.download_data:main"
+htt-preprocess = "scripts.preprocess:main"
