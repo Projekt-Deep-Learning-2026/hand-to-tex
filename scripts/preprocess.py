@@ -11,7 +11,7 @@ from tqdm import tqdm
 from hand_to_tex.datasets import HMEDatasetRaw, InkData
 from hand_to_tex.utils import LatexVocab
 
-BATCH_SIZE = 10000
+BATCH_SIZE = 1000
 SPLITS = ["train", "valid", "test", "symbols"]
 DATASET_PATH = Path("./data/mathwriting-2024")
 VOCAB_PATH = Path("./data/assets/vocab.json")
@@ -38,6 +38,25 @@ def _process_single_file(
         return "error", None, ID
 
 
+def _validate(
+    elements: dict[str, tuple[torch.Tensor, torch.Tensor]], max_len: None | int, capacity: int
+) -> list[tuple[torch.Tensor, torch.Tensor]]:
+
+    if capacity <= 0:
+        return []
+
+    res = []
+    for _k, (fts, ts) in sorted(elements.items()):
+        if max_len and ts.shape[0] > max_len:
+            continue
+        res.append((fts, ts))
+
+        if len(res) == capacity:
+            break
+
+    return res
+
+
 def preprocess_split(
     root: Path,
     out_dir: Path,
@@ -46,6 +65,7 @@ def preprocess_split(
     num_workers: int,
     start_idx: int,
     capacity: int | None,
+    max_len: int | None,
 ):
     split_dir = root / split_name
     if not split_dir.exists():
@@ -59,15 +79,17 @@ def preprocess_split(
     if len(inkmls) <= start_idx:
         print(f"No .inkml files found in {split_dir} (after skipping {start_idx} files)")
         return
+
     inkmls = inkmls[start_idx:]
 
-    if capacity:
-        inkmls = inkmls[:capacity]
+    if capacity is None:
+        capacity = len(inkmls)
 
     print(
         f"Processing split {split_name}, {len(inkmls)} .inkml files found, using {num_workers} workers"
     )
 
+    total_saved = 0
     temp_files = []
     empty_cnt, err_cnt = 0, 0
     try:
@@ -92,9 +114,18 @@ def preprocess_split(
                             err_cnt += 1
                     pbar.update(1)
 
+                to_save = _validate(current, max_len=max_len, capacity=(capacity - total_saved))
+
                 temp_path = out_dir / f"{split_name}_temp_{b_idx}.pt"
-                torch.save([v for _k, v in sorted(current.items())], temp_path)
+                torch.save(to_save, temp_path)
                 temp_files.append(temp_path)
+
+                total_saved += len(to_save)
+                pbar.set_postfix(gathered=str(total_saved))
+
+                if len(inkmls) > total_saved >= capacity:
+                    pbar.set_description(f"Done, capacity={capacity} achieved")
+                    break
 
         out_file_path = Path(out_dir, split_name + ".pt")
         final_data = []
@@ -117,7 +148,7 @@ def preprocess_split(
         print(f"Cleaned {len(temp_files)} temp files succesfully")
 
 
-def main():
+def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Pre-processing of dataset Hand-to-TeX")
     parser.add_argument(
         "--root",
@@ -149,13 +180,13 @@ def main():
         help=f"List of splits to preprocess, choices are: {', '.join(SPLITS)}, by default all splits will be preprocessed",
     )
     parser.add_argument(
-        "--out_dir",
+        "--out-dir",
         type=str,
         required=False,
         help="Directory where .pt preprocessed splits are going to be saved, by default the `root` directory will be used",
     )
     parser.add_argument(
-        "--start_idx",
+        "--start-idx",
         type=int,
         default=0,
         required=False,
@@ -167,6 +198,18 @@ def main():
         required=False,
         help="At most `capacity` files are going to be saved, helpful for creating partial datasets",
     )
+    parser.add_argument(
+        "--max-len",
+        type=int,
+        required=False,
+        help="Setting this argument enables you to omit sequences that have more than `max-len` tokens in normalised form",
+    )
+
+    return parser
+
+
+def main():
+    parser = get_parser()
     args = parser.parse_args()
 
     if args.capacity is not None and args.capacity <= 0:
@@ -178,7 +221,16 @@ def main():
 
     print(f"Preprocessing splits: {', '.join(args.splits)}")
     for split in args.splits:
-        preprocess_split(root, out_dir, split, vocab, args.threads, args.start_idx, args.capacity)
+        preprocess_split(
+            root=root,
+            out_dir=out_dir,
+            split_name=split,
+            vocab=vocab,
+            num_workers=args.threads,
+            start_idx=args.start_idx,
+            capacity=args.capacity,
+            max_len=args.max_len,
+        )
 
 
 if __name__ == "__main__":
