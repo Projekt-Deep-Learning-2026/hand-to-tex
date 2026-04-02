@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from hand_to_tex.scripts.download_data import download_data
+from scripts.download_data import download_data
 
 
 class TestDownloadData:
