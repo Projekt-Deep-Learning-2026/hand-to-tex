@@ -21,7 +21,7 @@ class TestDownloadData:
 
         return buf.getvalue()
 
-    def test_download_data_skips_if_exists(self, tmp_path, capsys):
+    def test_download_data_skips_if_exists(self, tmp_path, caplog):
         """If directory already exists, download_data should skip downloading."""
         data_dir = tmp_path / "data"
         (data_dir / "mathwriting-2024-excerpt").mkdir(parents=True)
@@ -29,8 +29,7 @@ class TestDownloadData:
         url = "https://example.com/mathwriting-2024-excerpt.tgz"
         download_data(url, dir_name=str(data_dir))
 
-        captured = capsys.readouterr()
-        assert "Skipping" in captured.out
+        assert "Skipping" in caplog.text
 
     @patch("urllib.request.urlopen")
     def test_download_data_success(self, mock_urlopen, tmp_path, mock_tgz):

@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-from hand_to_tex.utils import LatexVocab
+from hand_to_tex.utils import LatexVocab, logger
 
 
 class BaselineTrainer:
@@ -98,7 +98,7 @@ class BaselineTrainer:
             total_loss += loss.item()
 
             if (batch_idx + 1) % 100 == 0:
-                print(
+                logger.info(
                     f"   [Batch {batch_idx + 1}/{len(self.train_loader)}] Loss: {loss.item():.4f}"
                 )
 
@@ -156,15 +156,15 @@ class BaselineTrainer:
         num_epochs : int
             The absolute limit denoting integer passes through the entire structural dataset array.
         """
-        print(f"========== Training for {num_epochs} epochs ==========")
+        logger.info(f"========== Training for {num_epochs} epochs ==========")
 
         for epoch in range(num_epochs):
             start_time = time.time()
 
-            print(f"\n[ Epoch {epoch + 1}/{num_epochs} ]")
+            logger.info(f"\n[ Epoch {epoch + 1}/{num_epochs} ]")
             train_loss = self.train_epoch()
             valid_loss = self.validate()
 
             epoch_time = time.time() - start_time
-            print(f"Epoch completed in {epoch_time:.2f}s")
-            print(f"Train Loss: {train_loss:.4f}  |  Valid Loss: {valid_loss:.4f}")
+            logger.info(f"Epoch completed in {epoch_time:.2f}s")
+            logger.info(f"Train Loss: {train_loss:.4f}  |  Valid Loss: {valid_loss:.4f}")

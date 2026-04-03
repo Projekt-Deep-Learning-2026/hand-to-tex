@@ -5,6 +5,7 @@ description = "Model to convert handwritten math text into latex format"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "loguru>=0.7.3",
     "matplotlib>=3.10.8",
     "torch>=2.10.0",
     "tqdm>=4.67.3",

@@ -9,7 +9,7 @@ import torch
 from tqdm import tqdm
 
 from hand_to_tex.datasets import HMEDatasetRaw, InkData
-from hand_to_tex.utils import LatexVocab
+from hand_to_tex.utils import LatexVocab, logger
 
 BATCH_SIZE = 1000
 SPLITS = ["train", "valid", "test", "symbols"]
@@ -69,15 +69,15 @@ def preprocess_split(
 ):
     split_dir = root / split_name
     if not split_dir.exists():
-        print(f"Directory {split_dir} not found")
+        logger.error(f"Directory {split_dir} not found")
         return
     if not out_dir.exists():
-        print(f"Output directory {out_dir} not found, creating")
+        logger.info(f"Output directory {out_dir} not found, creating")
         os.mkdir(out_dir)
 
     inkmls = sorted(split_dir.rglob("*.inkml"))
     if len(inkmls) <= start_idx:
-        print(f"No .inkml files found in {split_dir} (after skipping {start_idx} files)")
+        logger.warning(f"No .inkml files found in {split_dir} (after skipping {start_idx} files)")
         return
 
     inkmls = inkmls[start_idx:]
@@ -85,7 +85,7 @@ def preprocess_split(
     if capacity is None:
         capacity = len(inkmls)
 
-    print(
+    logger.info(
         f"Processing split {split_name}, {len(inkmls)} .inkml files found, using {num_workers} workers"
     )
 
@@ -130,22 +130,22 @@ def preprocess_split(
         out_file_path = Path(out_dir, split_name + ".pt")
         final_data = []
 
-        print(f"Saving to {out_file_path}")
+        logger.info(f"Saving to {out_file_path}")
         for temp in temp_files:
             final_data.extend(torch.load(temp, weights_only=True))
 
         torch.save(final_data, out_file_path)
 
-        print(f"Preprocessing {split_name}, summary:")
-        print(f"Saved: {len(final_data)} out of {len(inkmls)}")
-        print(f"Empty samples: {empty_cnt}")
-        print(f"Error samples: {err_cnt}")
-        print("=" * 50)
+        logger.info(f"Preprocessing {split_name}, summary:")
+        logger.info(f"Saved: {len(final_data)} out of {len(inkmls)}")
+        logger.info(f"Empty samples: {empty_cnt}")
+        logger.info(f"Error samples: {err_cnt}")
+        logger.info("=" * 50)
 
     finally:
         for temp in tqdm(temp_files, "Cleaning temp files"):
             temp.unlink()
-        print(f"Cleaned {len(temp_files)} temp files succesfully")
+        logger.info(f"Cleaned {len(temp_files)} temp files succesfully")
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -219,7 +219,7 @@ def main():
     vocab = LatexVocab.load(args.vocab)
     out_dir = root if args.out_dir is None else Path(args.out_dir)
 
-    print(f"Preprocessing splits: {', '.join(args.splits)}")
+    logger.info(f"Preprocessing splits: {', '.join(args.splits)}")
     for split in args.splits:
         preprocess_split(
             root=root,

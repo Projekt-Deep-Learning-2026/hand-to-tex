@@ -5,6 +5,8 @@ from pathlib import Path
 
 from tqdm import tqdm
 
+from hand_to_tex.utils import logger
+
 CHUNK_SIZE = 8192
 
 
@@ -41,25 +43,25 @@ def download_data(url: str, dir_name: str = "data"):
     data_name = archive_name.split(".")[-2]
 
     if (dir_path / data_name).exists():
-        print(f"Data already exists in '{dir_path}'. Skipping.")
+        logger.info(f"Data already exists in '{dir_path}'. Skipping.")
         return
 
     dir_path.mkdir(parents=True, exist_ok=True)
 
-    print(f"Downloading data from: {url} ...")
+    logger.info(f"Downloading data from: {url} ...")
     try:
         download_with_progress(url, archive_path)
-        print("Extracting archive...")
+        logger.info("Extracting archive...")
         extract_with_progress(archive_path, dir_path)
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error(f"Error: {e}")
         return
     finally:
         if archive_path.exists():
             archive_path.unlink()
-            print("Archive removed.")
+            logger.info("Archive removed.")
 
-    print("Succesfully downloaded data!")
+    logger.info("Succesfully downloaded data!")
 
 
 def main():
