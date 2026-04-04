@@ -1,7 +1,6 @@
 import argparse
 import concurrent.futures
 import itertools
-import os
 from pathlib import Path
 from typing import Literal
 
@@ -18,43 +17,34 @@ VOCAB_PATH = Path("./data/assets/vocab.json")
 
 
 def _process_single_file(
-    pth: Path, vocab: LatexVocab
+    pth: Path,
+    vocab: LatexVocab,
+    max_tokens: None | int,
+    max_tracepoints: None | int,
 ) -> tuple[Literal["success", "error", "empty"], tuple[torch.Tensor, torch.Tensor] | None, str]:
-    """Process single .inkml file, return status and pair (features, tokens)"""
+    """Process single .inkml file, perform validation and return status and pair (features, tokens)"""
     ID = pth.stem
+    ERR = ("error", None, ID)
+    EMPTY = ("empty", None, ID)
     try:
         ink = InkData.load(pth)
         fts = HMEDatasetRaw.extract_features(ink)
 
         if fts.size(0) == 0:
-            return "empty", None, ID
+            return EMPTY
 
         tokens = vocab.encode_expr(ink.tex_norm)
         tokens = torch.tensor(tokens, dtype=torch.long)
+
+        if (max_tracepoints is not None and fts.size(0) > max_tracepoints) or (
+            max_tokens is not None and tokens.size(0) > max_tokens
+        ):
+            return ERR
 
         return "success", (fts, tokens), ID
 
     except Exception as _e:
         return "error", None, ID
-
-
-def _validate(
-    elements: dict[str, tuple[torch.Tensor, torch.Tensor]], max_len: None | int, capacity: int
-) -> list[tuple[torch.Tensor, torch.Tensor]]:
-
-    if capacity <= 0:
-        return []
-
-    res = []
-    for _k, (fts, ts) in sorted(elements.items()):
-        if max_len and ts.shape[0] > max_len:
-            continue
-        res.append((fts, ts))
-
-        if len(res) == capacity:
-            break
-
-    return res
 
 
 def preprocess_split(
@@ -65,7 +55,8 @@ def preprocess_split(
     num_workers: int,
     start_idx: int,
     capacity: int | None,
-    max_len: int | None,
+    max_tokens: int | None,
+    max_tracepoints: int | None,
 ):
     split_dir = root / split_name
     if not split_dir.exists():
@@ -73,7 +64,7 @@ def preprocess_split(
         return
     if not out_dir.exists():
         logger.info(f"Output directory {out_dir} not found, creating")
-        os.mkdir(out_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
 
     inkmls = sorted(split_dir.rglob("*.inkml"))
     if len(inkmls) <= start_idx:
@@ -100,7 +91,14 @@ def preprocess_split(
             for b_idx, batch_inkmls in enumerate(itertools.batched(inkmls, BATCH_SIZE)):
                 current = {}
                 futures = {
-                    executor.submit(_process_single_file, pth, vocab): pth for pth in batch_inkmls
+                    executor.submit(
+                        _process_single_file,
+                        pth,
+                        vocab,
+                        max_tokens,
+                        max_tracepoints,
+                    ): pth
+                    for pth in batch_inkmls
                 }
                 for future in concurrent.futures.as_completed(futures):
                     status, res, ID = future.result()
@@ -114,8 +112,12 @@ def preprocess_split(
                             err_cnt += 1
                     pbar.update(1)
 
-                to_save = _validate(current, max_len=max_len, capacity=(capacity - total_saved))
+                remaining = capacity - total_saved
+                if remaining <= 0:
+                    pbar.set_description(f"Done, capacity={capacity} achieved")
+                    break
 
+                to_save = sorted(current.items())[:remaining]
                 temp_path = out_dir / f"{split_name}_temp_{b_idx}.pt"
                 torch.save(to_save, temp_path)
                 temp_files.append(temp_path)
@@ -123,7 +125,7 @@ def preprocess_split(
                 total_saved += len(to_save)
                 pbar.set_postfix(gathered=str(total_saved))
 
-                if len(inkmls) > total_saved >= capacity:
+                if total_saved >= capacity:
                     pbar.set_description(f"Done, capacity={capacity} achieved")
                     break
 
@@ -199,21 +201,41 @@ def get_parser() -> argparse.ArgumentParser:
         help="At most `capacity` files are going to be saved, helpful for creating partial datasets",
     )
     parser.add_argument(
-        "--max-len",
+        "--max-tokens",
         type=int,
         required=False,
-        help="Setting this argument enables you to omit sequences that have more than `max-len` tokens in normalised form",
+        help="Setting this parameter enables you to omit samples that have more than this many tokens in normalised form. Alias: --max-len",
+    )
+    parser.add_argument(
+        "--max-tracepoints",
+        type=int,
+        required=False,
+        help="Setting this parameter enables you to omit samples that have more than this many tracepoints in feature representation",
     )
 
     return parser
 
 
-def main():
-    parser = get_parser()
+def validate_parser(parser: argparse.ArgumentParser) -> argparse.Namespace:
     args = parser.parse_args()
 
     if args.capacity is not None and args.capacity <= 0:
-        parser.error("Argument --capacity, when passed, must be > 0")
+        parser.error(f"Argument --capacity, when passed, must be > 0 (got {args.capacity})")
+
+    if args.max_tokens is not None and args.max_tokens <= 0:
+        parser.error(f"Argument --max-tokens, when passed, must be > 0 (got {args.max_tokens})")
+
+    if args.max_tracepoints is not None and args.max_tracepoints <= 0:
+        parser.error(
+            f"Argument --max-tracepoints, when passed, must be > 0 (got {args.max_tracepoints})"
+        )
+
+    return args
+
+
+def main():
+    parser = get_parser()
+    args = validate_parser(parser)
 
     root = Path(args.root)
     vocab = LatexVocab.load(args.vocab)
@@ -229,7 +251,8 @@ def main():
             num_workers=args.threads,
             start_idx=args.start_idx,
             capacity=args.capacity,
-            max_len=args.max_len,
+            max_tokens=args.max_tokens,
+            max_tracepoints=args.max_tracepoints,
         )
 
 
