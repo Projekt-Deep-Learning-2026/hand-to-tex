@@ -21,11 +21,14 @@ def _process_single_file(
     vocab: LatexVocab,
     max_tokens: None | int,
     max_tracepoints: None | int,
-) -> tuple[Literal["success", "error", "empty"], tuple[torch.Tensor, torch.Tensor] | None, str]:
+) -> tuple[
+    Literal["success", "error", "empty", "filtered"], tuple[torch.Tensor, torch.Tensor] | None, str
+]:
     """Process single .inkml file, perform validation and return status and pair (features, tokens)"""
     ID = pth.stem
     ERR = ("error", None, ID)
     EMPTY = ("empty", None, ID)
+    FILTERED = ("filtered", None, ID)
     try:
         ink = InkData.load(pth)
         fts = HMEDatasetRaw.extract_features(ink)
@@ -36,15 +39,17 @@ def _process_single_file(
         tokens = vocab.encode_expr(ink.tex_norm)
         tokens = torch.tensor(tokens, dtype=torch.long)
 
-        if (max_tracepoints is not None and fts.size(0) > max_tracepoints) or (
-            max_tokens is not None and tokens.size(0) > max_tokens
+        if (
+            (max_tracepoints is not None and fts.size(0) > max_tracepoints)
+            or (max_tokens is not None and tokens.size(0) > max_tokens)
+            or (vocab.UNK in tokens)
         ):
-            return ERR
+            return FILTERED
 
         return "success", (fts, tokens), ID
 
     except Exception as _e:
-        return "error", None, ID
+        return ERR
 
 
 def preprocess_split(
@@ -62,9 +67,11 @@ def preprocess_split(
     if not split_dir.exists():
         logger.error(f"Directory {split_dir} not found")
         return
+
     if not out_dir.exists():
         logger.info(f"Output directory {out_dir} not found, creating")
         out_dir.mkdir(parents=True, exist_ok=True)
+    out_file_path = Path(out_dir, split_name + ".pt")
 
     inkmls = sorted(split_dir.rglob("*.inkml"))
     if len(inkmls) <= start_idx:
@@ -82,7 +89,7 @@ def preprocess_split(
 
     total_saved = 0
     temp_files = []
-    empty_cnt, err_cnt = 0, 0
+    empty_cnt, err_cnt, filter_cnt = 0, 0, 0
     try:
         with (
             concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor,
@@ -104,18 +111,19 @@ def preprocess_split(
                     status, res, ID = future.result()
                     match status:
                         case "success":
-                            fts, ts = res[0].clone(), res[1].clone()  # type: ignore
-                            current[ID] = (fts, ts)
+                            assert res is not None, (
+                                "When status=success res should be (Tensor, Tensor), not None"
+                            )
+                            current[ID] = res
                         case "empty":
                             empty_cnt += 1
                         case "error":
                             err_cnt += 1
+                        case "filtered":
+                            filter_cnt += 1
                     pbar.update(1)
 
                 remaining = capacity - total_saved
-                if remaining <= 0:
-                    pbar.set_description(f"Done, capacity={capacity} achieved")
-                    break
 
                 to_save = sorted(current.items())[:remaining]
                 temp_path = out_dir / f"{split_name}_temp_{b_idx}.pt"
@@ -129,9 +137,7 @@ def preprocess_split(
                     pbar.set_description(f"Done, capacity={capacity} achieved")
                     break
 
-        out_file_path = Path(out_dir, split_name + ".pt")
         final_data = []
-
         logger.info(f"Saving to {out_file_path}")
         for temp in temp_files:
             final_data.extend(torch.load(temp, weights_only=True))
@@ -142,6 +148,7 @@ def preprocess_split(
         logger.info(f"Saved: {len(final_data)} out of {len(inkmls)}")
         logger.info(f"Empty samples: {empty_cnt}")
         logger.info(f"Error samples: {err_cnt}")
+        logger.info(f"Filtered-out samples: {filter_cnt}")
         logger.info("=" * 50)
 
     finally:
@@ -176,6 +183,7 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--splits",
         nargs="+",
+        type=str,
         required=False,
         choices=SPLITS,
         default=SPLITS,
@@ -229,6 +237,12 @@ def validate_parser(parser: argparse.ArgumentParser) -> argparse.Namespace:
         parser.error(
             f"Argument --max-tracepoints, when passed, must be > 0 (got {args.max_tracepoints})"
         )
+
+    if args.threads is not None and args.threads <= 0:
+        parser.error(f"Argument --threads, when passed, must be >= 0 (got {args.threads})")
+
+    if args.start_idx is not None and args.start_idx < 0:
+        parser.error(f"Argument --start_idx, when passed, must be >= 0 (got {args.start_idx})")
 
     return args
 
