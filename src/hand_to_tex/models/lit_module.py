@@ -69,19 +69,13 @@ class HMELightningModule(pl.LightningModule):
         padded_ft, ft_lengths, _, _ = batch
         generated_ts = self.generate(padded_ft, ft_lengths)
 
-        predicted_txt = [" ".join(self.vocab.decode_sequence(p.tolist()[1:])) for p in generated_ts]
-        expected_txt = [" ".join(self.vocab.decode_sequence(e.tolist()[1:])) for e in expected]
+        predicted_txt = [self._to_expr(ts) for ts in generated_ts]
+        expected_txt = [self._to_expr(ts) for ts in expected]
 
         self.val_metrics.update(predicted_txt, expected_txt)
 
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log_dict(self.val_metrics, on_step=False, on_epoch=True, prog_bar=True)
-
-        if batch_idx == 0:
-            print("\n" + "=" * 40)
-            print(f"EXPECTED:  {expected_txt[0]}")
-            print(f"PREDICTED: {predicted_txt[0]}")
-            print("=" * 40 + "\n")
 
         return loss
 
@@ -158,3 +152,17 @@ class HMELightningModule(pl.LightningModule):
                 "interval": "step",
             },
         }
+
+    def _to_expr(self, tokens: Tensor) -> str:
+        token_ids = tokens.tolist()
+        expr = []
+        for t_id in token_ids:
+            match t_id:
+                case self.vocab.EOS:
+                    break
+                case self.vocab.PAD | self.vocab.SOS | self.vocab.UNK:
+                    continue
+                case _:
+                    expr.append(self.vocab.decode(t_id))
+
+        return " ".join(expr)
