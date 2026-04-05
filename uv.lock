@@ -701,6 +701,7 @@ dependencies = [
     { name = "loguru" },
     { name = "matplotlib" },
     { name = "torch" },
+    { name = "torchmetrics" },
     { name = "tqdm" },
     { name = "wandb" },
 ]
@@ -719,6 +720,7 @@ requires-dist = [
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "torch", specifier = ">=2.10.0" },
+    { name = "torchmetrics", specifier = ">=1.9.0" },
     { name = "tqdm", specifier = ">=4.67.3" },
     { name = "wandb", specifier = ">=0.25.1" },
 ]
