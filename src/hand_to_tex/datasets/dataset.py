@@ -68,7 +68,7 @@ class _HMEDatasetBase(Dataset, ABC):
             - curvature
                 Signed local curvature `dtheta / dist`
             - acc_tan
-                Tangential acceleration `dspeed / dt`
+                Tan-acceleration `dspeed / dt`
             - is_stroke_start
                 Binary indicators of stroke boundaries
         """
