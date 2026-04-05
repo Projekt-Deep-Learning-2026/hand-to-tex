@@ -62,7 +62,7 @@ class PositionalEncoding(nn.Module):
             The input tensor with added positional encodings and applied dropout,
             matching the shape of the original input.
         """
-        x = x + self.pe[:, : x.size(1)]
+        x = x + self.pe[:, : x.size(1)]  # type: ignore
         return self.dropout(x)
 
 
@@ -189,7 +189,7 @@ class BaselineTransformer(nn.Module):
 
         src_lens = torch.as_tensor(src_lengths, device=src.device, dtype=torch.long)
         new_src_lens = (
-            (src_lens + 2 * self.input_conv.padding[0] - self.input_conv.kernel_size[0])
+            (src_lens + 2 * self.input_conv.padding[0] - self.input_conv.kernel_size[0])  # type: ignore
             // self.input_conv.stride[0]
         ) + 1
 

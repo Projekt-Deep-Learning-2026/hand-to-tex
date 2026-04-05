@@ -1,3 +1,4 @@
-from .baseline_model import BaselineTransformer, PositionalEncoding
+from .components.baseline_model import BaselineTransformer
+from .lit_module import HMELightningModule
 
-__all__ = ["BaselineTransformer", "PositionalEncoding"]
+__all__ = ["BaselineTransformer", "HMELightningModule"]
