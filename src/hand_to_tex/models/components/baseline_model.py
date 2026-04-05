@@ -154,7 +154,7 @@ class BaselineTransformer(nn.Module):
         mask = mask.float().masked_fill(mask == 0, float("-inf")).masked_fill(mask == 1, 0.0)
         return mask
 
-    def forward(self, src: Tensor, src_lengths: list[int], tgt: Tensor) -> Tensor:
+    def forward(self, src: Tensor, src_lengths: Tensor, tgt: Tensor) -> Tensor:
         """
         Orchestrates the complete forward pass through the sequence mapping pipeline.
 
@@ -187,9 +187,8 @@ class BaselineTransformer(nn.Module):
         src_encoded = self.input_conv(src_conv)
         src_encoded = src_encoded.permute(0, 2, 1)
 
-        src_lens = torch.as_tensor(src_lengths, device=src.device, dtype=torch.long)
         new_src_lens = (
-            (src_lens + 2 * self.input_conv.padding[0] - self.input_conv.kernel_size[0])  # type: ignore
+            (src_lengths + 2 * self.input_conv.padding[0] - self.input_conv.kernel_size[0])  # type: ignore
             // self.input_conv.stride[0]
         ) + 1
 
