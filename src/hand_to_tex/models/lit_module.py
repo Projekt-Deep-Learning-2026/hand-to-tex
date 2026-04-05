@@ -84,16 +84,19 @@ class HMELightningModule(pl.LightningModule):
         B = src.size(0)
         device = src.device
 
+        memory, mem_mask = self.model.encode(src, src_lengths)  # type: ignore
+
         tgt = torch.full((B, 1), fill_value=self.vocab.SOS, dtype=torch.long, device=device)
+
         for _ in range(self.max_generate_len):
-            output = self.model(src=src, src_lengths=src_lengths, tgt=tgt)
+            # 2. SZYBKI DECODE
+            # Pytamy tylko połówkę odpowiedzialną za pisanie
+            output = self.model.decode(tgt=tgt, memory=memory, memory_key_padding_mask=mem_mask)  # type: ignore
 
             next_token_probs = output[:, -1, :]
             next_token_list = torch.argmax(next_token_probs, dim=-1).unsqueeze(1)
-
             tgt = torch.cat([tgt, next_token_list], dim=1)
 
-            # check if all `columns` of tgt has End-of-sequence, break if so
             if (tgt == self.vocab.EOS).any(dim=1).all():
                 break
 
