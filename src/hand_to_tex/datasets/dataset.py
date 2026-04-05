@@ -102,7 +102,15 @@ class _HMEDatasetBase(Dataset, ABC):
                 )
             )
 
-        return torch.cat(features_per_trace, dim=0)
+        feats = torch.cat(features_per_trace, dim=0)
+
+        cols_to_norm = [3, 4, 5, 6, 7, 8]
+        for col in cols_to_norm:
+            mean = feats[:, col].mean()
+            std = feats[:, col].std() + _HMEDatasetBase.EPS
+            feats[:, col] = (feats[:, col] - mean) / std
+
+        return feats
 
     @staticmethod
     def _normalise_data(xyt: Tensor) -> Tensor:
