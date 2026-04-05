@@ -26,10 +26,10 @@ class HMEDataLoaderFactory:
         self,
         root: Path | str,
         processed: bool,
-        vocab: LatexVocab | None = None,
-        batch_size: int = 32,
-        num_workers: int = 4,
-        pin_memory: bool = True,
+        vocab: LatexVocab,
+        batch_size: int,
+        num_workers: int,
+        pin_memory: bool,
     ):
         """Creates a DataLoader factory that can produce HMEDataset dataloaders
 
@@ -50,7 +50,7 @@ class HMEDataLoaderFactory:
         """
         self.root = Path(root)
         self.processed = processed
-        self.vocab = LatexVocab.default() if vocab is None else vocab
+        self.vocab = vocab
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory

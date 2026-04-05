@@ -200,3 +200,6 @@ class LatexVocab:
             List of token strings. Unknown IDs are decoded as `<UNK>`.
         """
         return [self.decode(t_id) for t_id in token_ids]
+
+    def __len__(self) -> int:
+        return len(self._encode)
