@@ -89,8 +89,6 @@ class HMELightningModule(pl.LightningModule):
         tgt = torch.full((B, 1), fill_value=self.vocab.SOS, dtype=torch.long, device=device)
 
         for _ in range(self.max_generate_len):
-            # 2. SZYBKI DECODE
-            # Pytamy tylko połówkę odpowiedzialną za pisanie
             output = self.model.decode(tgt=tgt, memory=memory, memory_key_padding_mask=mem_mask)  # type: ignore
 
             next_token_probs = output[:, -1, :]

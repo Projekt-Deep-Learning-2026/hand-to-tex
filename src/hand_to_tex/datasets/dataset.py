@@ -15,6 +15,7 @@ class _HMEDatasetBase(Dataset, ABC):
     """Base class for Handwritten Math Expressions dataset"""
 
     EPS: Final[float] = 1e-6
+    FEATURES: Final[int] = 10
 
     def __init__(
         self,
@@ -76,8 +77,8 @@ class _HMEDatasetBase(Dataset, ABC):
             return torch.zeros((0, 10), dtype=torch.float32)
 
         traces = [torch.as_tensor(t, dtype=torch.float32) for t in ink.traces if len(t) > 0]
-
         trace_lengths = [trace.shape[0] for trace in traces]
+
         all_points = torch.cat(traces, dim=0)
         all_points = _HMEDatasetBase._normalise_data(all_points)
         norm_traces = all_points.split(trace_lengths)
@@ -91,15 +92,7 @@ class _HMEDatasetBase(Dataset, ABC):
             is_stroke_start[0] = 1.0
 
             features_per_trace.append(
-                torch.cat(
-                    [
-                        trace,
-                        d_xyt,
-                        dynamics,
-                        is_stroke_start.unsqueeze(1),
-                    ],
-                    dim=1,
-                )
+                torch.cat([trace, d_xyt, dynamics, is_stroke_start.unsqueeze(1)], dim=1)
             )
 
         feats = torch.cat(features_per_trace, dim=0)
@@ -107,8 +100,11 @@ class _HMEDatasetBase(Dataset, ABC):
         cols_to_norm = [3, 4, 5, 6, 7, 8]
         for col in cols_to_norm:
             mean = feats[:, col].mean()
-            std = feats[:, col].std() + _HMEDatasetBase.EPS
+            std = feats[:, col].std(unbiased=False)
+            std = torch.nan_to_num(std, nan=0.0) + _HMEDatasetBase.EPS
+
             feats[:, col] = (feats[:, col] - mean) / std
+            feats[:, col] = torch.clamp(feats[:, col], min=-5.0, max=5.0)
 
         return feats
 
@@ -145,7 +141,8 @@ class _HMEDatasetBase(Dataset, ABC):
         The first point in every trace has zero deltas by definition.
         """
         deltas = torch.zeros_like(xyt)
-        deltas[1:] = xyt[1:] - xyt[:-1]
+        if xyt.shape[0] > 1:
+            deltas[1:] = xyt[1:] - xyt[:-1]
         return deltas
 
     @staticmethod
@@ -163,6 +160,9 @@ class _HMEDatasetBase(Dataset, ABC):
             Tensor `(N, 3)` with columns:
             `(speed, curve, acc_tan)`.
         """
+        if d_xyt.shape[0] == 1:
+            return torch.zeros_like(d_xyt)
+
         dx = d_xyt[:, 0]
         dy = d_xyt[:, 1]
         dt = d_xyt[:, 2]
