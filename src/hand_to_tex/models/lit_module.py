@@ -85,23 +85,35 @@ class HMELightningModule(pl.LightningModule):
 
         return loss
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def generate(self, src: Tensor, src_lengths: Tensor) -> Tensor:
         B = src.size(0)
         device = src.device
 
         memory, mem_mask = self.model.encode(src, src_lengths)  # type: ignore
 
-        tgt = torch.full((B, 1), fill_value=self.vocab.SOS, dtype=torch.long, device=device)
+        tgt = torch.full(
+            (B, self.max_generate_len), fill_value=self.vocab.PAD, dtype=torch.long, device=device
+        )
+        tgt[:, 0] = self.vocab.SOS
+        unfinished_seqs = torch.ones(B, dtype=torch.bool, device=device)
 
-        for _ in range(self.max_generate_len):
-            output = self.model.decode(tgt=tgt, memory=memory, memory_key_padding_mask=mem_mask)  # type: ignore
+        for step in range(1, self.max_generate_len):
+            current_tgt = tgt[:, :step]
+
+            output = self.model.decode(
+                tgt=current_tgt, memory=memory, memory_key_padding_mask=mem_mask
+            )  # type: ignore
 
             next_token_probs = output[:, -1, :]
-            next_token_list = torch.argmax(next_token_probs, dim=-1).unsqueeze(1)
-            tgt = torch.cat([tgt, next_token_list], dim=1)
+            next_token = torch.argmax(next_token_probs, dim=-1)
 
-            if (tgt == self.vocab.EOS).any(dim=1).all():
+            tgt[:, step] = torch.where(unfinished_seqs, next_token, tgt[:, step])
+
+            unfinished_seqs = unfinished_seqs & (next_token != self.vocab.EOS)
+
+            if not unfinished_seqs.any():
+                tgt = tgt[:, : step + 1]
                 break
 
         return tgt
