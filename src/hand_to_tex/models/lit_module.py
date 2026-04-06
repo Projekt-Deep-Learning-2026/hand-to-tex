@@ -2,6 +2,8 @@ import lightning.pytorch as pl
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import wandb
+from lightning.pytorch.loggers import WandbLogger
 from torch import Tensor
 from torchmetrics import MetricCollection
 from torchmetrics.text import CharErrorRate, WordErrorRate
@@ -76,6 +78,10 @@ class HMELightningModule(pl.LightningModule):
 
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log_dict(self.val_metrics, on_step=False, on_epoch=True, prog_bar=True)
+
+        if batch_idx == 0:
+            for p, e in zip(predicted_txt, expected_txt, strict=True):
+                self.validation_samples.append({"prediction": p, "expected": e})
 
         return loss
 
@@ -167,3 +173,19 @@ class HMELightningModule(pl.LightningModule):
                     expr.append(self.vocab.decode(t_id))
 
         return " ".join(expr)
+
+    def on_validation_epoch_start(self) -> None:
+        self.validation_samples = []
+
+    def on_validation_epoch_end(self) -> None:
+
+        if self.logger and isinstance(self.logger, WandbLogger) and self.validation_samples:
+            cols = ["Epoch", "Predicted", "Expected"]
+            data = [
+                (self.current_epoch, s["prediction"], s["expected"])
+                for s in self.validation_samples
+            ]
+            table = wandb.Table(columns=cols, data=data)
+
+            self.logger.experiment.log({"validation_prediction_table": table})
+            self.val_samples = []
