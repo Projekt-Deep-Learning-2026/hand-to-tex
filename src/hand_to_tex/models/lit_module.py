@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import lightning.pytorch as pl
 import torch
 import torch.nn as nn
@@ -15,7 +17,7 @@ class HMELightningModule(pl.LightningModule):
     def __init__(
         self,
         model: nn.Module,
-        vocab: LatexVocab,
+        vocab: Path,
         max_generate_len: int = 150,
         lr: float = 3e-4,
         label_smoothing: float = 0.1,
@@ -23,7 +25,7 @@ class HMELightningModule(pl.LightningModule):
     ):
         super().__init__()
         self.model = model
-        self.vocab = vocab
+        self.vocab = LatexVocab.load(vocab)
         self.max_generate_len = max_generate_len
         self.lr = lr
         self.weight_decay = weight_decay
