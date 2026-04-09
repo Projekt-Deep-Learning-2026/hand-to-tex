@@ -43,10 +43,10 @@ class ExperimentalTransformer(nn.Module):
         self.d_model = d_model
 
         self.input_proj = nn.Sequential(
-            nn.Conv1d(in_channels, d_model, kernel_size=3, padding=1),
+            nn.Conv1d(in_channels, d_model, kernel_size=5, stride=2, padding=1),
             nn.BatchNorm1d(d_model),
             nn.GELU(),
-            nn.Conv1d(d_model, d_model, kernel_size=3, padding=1),
+            nn.Conv1d(d_model, d_model, kernel_size=5, stride=2, padding=2),
             nn.BatchNorm1d(d_model),
             nn.GELU(),
         )
@@ -70,13 +70,6 @@ class ExperimentalTransformer(nn.Module):
 
         self.fc_out = nn.Linear(d_model, vocab_size)
 
-        self._init_weights()
-
-    def _init_weights(self):
-        for p in self.parameters():
-            if p.dim() > 1:
-                nn.init.xavier_uniform_(p)
-
     def _get_padding_mask(self, lengths: Tensor, max_len: int) -> Tensor:
         device = lengths.device
         mask = torch.arange(max_len, device=device).expand(
@@ -84,23 +77,28 @@ class ExperimentalTransformer(nn.Module):
         ) >= lengths.unsqueeze(1)
         return mask
 
+    def _calc_downsampled_lengths(self, lengths: Tensor) -> Tensor:
+
+        conv1_len = ((lengths + 2 * 2 - 5) // 2) + 1
+        conv2_len = ((conv1_len + 2 * 2 - 5) // 2) + 1
+        return conv2_len
+
     def forward(self, src: Tensor, src_lengths: Tensor, tgt: Tensor) -> Tensor:
         src_conv = src.transpose(1, 2)
-        src_features = self.input_proj(src_conv)
-        src_features = src_features.transpose(1, 2)  # Wracamy do [B, S, C]
+        src_features = self.input_proj(src_conv).transpose(1, 2)
 
         src_emb = self.src_pe(src_features)
 
-        src_key_padding_mask = self._get_padding_mask(src_lengths, src.size(1))
+        new_src_lengths = self._calc_downsampled_lengths(src_lengths)
+        src_key_padding_mask = self._get_padding_mask(new_src_lengths, src_features.size(1))
 
         tgt_emb = self.tgt_pe(self.tgt_tok_emb(tgt) * math.sqrt(self.d_model))
-
         tgt_key_padding_mask = tgt == self.pad_idx
 
         tgt_seq_len = tgt.size(1)
         tgt_causal_mask = nn.Transformer.generate_square_subsequent_mask(
             tgt_seq_len, device=tgt.device
-        )
+        ).bool()
 
         output = self.transformer(
             src=src_emb,
@@ -116,7 +114,7 @@ class ExperimentalTransformer(nn.Module):
         return self.fc_out(output)
 
     def encode(self, src: Tensor, src_lengths: Tensor) -> tuple[Tensor, Tensor]:
-        """Oblicza reprezentację trajektorii tylko RAZ."""
+
         src_conv = src.transpose(1, 2)
         src_features = self.input_proj(src_conv).transpose(1, 2)
 
@@ -127,7 +125,7 @@ class ExperimentalTransformer(nn.Module):
         return memory, src_key_padding_mask
 
     def decode(self, tgt: Tensor, memory: Tensor, memory_key_padding_mask: Tensor) -> Tensor:
-        """Szybko generuje następny token wykorzystując Cache z pamięci obrazka."""
+
         tgt_emb = self.tgt_pe(self.tgt_tok_emb(tgt) * math.sqrt(self.d_model))
 
         tgt_causal_mask = nn.Transformer.generate_square_subsequent_mask(
