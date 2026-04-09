@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import lightning.pytorch as pl
 import torch
 import torch.nn as nn
@@ -10,22 +8,40 @@ from torch import Tensor
 from torchmetrics import MetricCollection
 from torchmetrics.text import CharErrorRate, WordErrorRate
 
+from hand_to_tex.models.components import ExperimentalTransformer
 from hand_to_tex.utils import LatexVocab
 
 
 class HMELightningModule(pl.LightningModule):
     def __init__(
         self,
-        model: nn.Module,
-        vocab: Path,
+        vocab_path: str,
+        d_model: int = 256,
+        nhead: int = 8,
+        num_encoder_layers: int = 4,
+        num_decoder_layers: int = 4,
+        dim_feedforward: int = 1024,
+        dropout: float = 0.1,
         max_generate_len: int = 150,
         lr: float = 3e-4,
         label_smoothing: float = 0.1,
         weight_decay: float = 1e-4,
     ):
         super().__init__()
-        self.model = model
-        self.vocab = LatexVocab.load(vocab)
+
+        self.vocab = LatexVocab.load(vocab_path)
+
+        self.model = ExperimentalTransformer(
+            in_channels=10,
+            vocab_size=len(self.vocab),
+            pad_idx=self.vocab.PAD,
+            d_model=d_model,
+            nhead=nhead,
+            num_encoder_layers=num_encoder_layers,
+            num_decoder_layers=num_decoder_layers,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+        )
         self.max_generate_len = max_generate_len
         self.lr = lr
         self.weight_decay = weight_decay

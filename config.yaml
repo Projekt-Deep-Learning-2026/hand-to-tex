@@ -1,0 +1,53 @@
+seed_everything: 42
+
+trainer:
+  accelerator: gpu
+  devices: auto
+  precision: bf16-mixed
+  max_epochs: 80
+  log_every_n_steps: 10
+  gradient_clip_val: 1.0
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        dirpath: checkpoints/
+        filename: "hme-{epoch:02d}-{val/CER:.3f}"
+        monitor: val/CER
+        mode: min
+        save_top_k: 3
+        save_last: true
+    - class_path: lightning.pytorch.callbacks.EarlyStopping
+      init_args:
+        monitor: val/CER
+        patience: 15
+        mode: min
+        check_finite: true
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: step
+    - class_path: lightning.pytorch.callbacks.RichProgressBar
+
+  logger:
+    - class_path: lightning.pytorch.loggers.WandbLogger
+      init_args:
+        project: hand-to-tex
+        name: L40S-SOTA-Run
+
+data:
+  root: data/shorter
+  vocab_path: data/assets/vocab.json
+  processed: true
+  batch_size: 128
+  num_workers: 7
+
+model:
+  vocab_path: data/assets/vocab.json
+  lr: 3e-4
+  weight_decay: 1e-4
+  max_generate_len: 150
+  d_model: 256
+  nhead: 8
+  num_encoder_layers: 4
+  num_decoder_layers: 4
+  dim_feedforward: 1024
+  dropout: 0.1
