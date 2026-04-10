@@ -14,7 +14,7 @@ class HandToTexCLI(LightningCLI):
         os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
     def before_fit(self):
-        self.model.model = torch.compile(self.model.model, mode="max-autotune")  # type: ignore
+        self.model.model = torch.compile(self.model.model)  # type: ignore
 
 
 def main():

@@ -1,3 +1,5 @@
+from locale import NOEXPR
+from typing import override
 import lightning.pytorch as pl
 import torch
 import torch.nn as nn
@@ -59,6 +61,9 @@ class HMELightningModule(pl.LightningModule):
         self.val_metrics = metrics.clone(prefix="val/")
         self.test_metrics = metrics.clone(prefix="test/")
 
+        self.validation_samples = []
+        self.test_samples = []
+
         self.save_hyperparameters(ignore=["model", "vocab"])
 
     def forward(self, src: Tensor, src_lengths: Tensor, tgt: Tensor):
@@ -96,6 +101,26 @@ class HMELightningModule(pl.LightningModule):
 
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log_dict(self.val_metrics, on_step=False, on_epoch=True, prog_bar=True)
+
+        if batch_idx == 0:
+            for p, e in zip(predicted_txt, expected_txt, strict=True):
+                self.validation_samples.append({"prediction": p, "expected": e})
+
+        return loss
+
+    def test_step(self, batch, batch_idx):
+        loss, _, expected = self._shared_step(batch)
+        padded_ft, ft_lengths, _, _ = batch
+
+        generated_ts = self.generate(padded_ft, ft_lengths)
+
+        predicted_txt = [self._to_expr(ts) for ts in generated_ts]
+        expected_txt = [self._to_expr(ts) for ts in expected]
+
+        self.test_metrics.update(predicted_txt, expected_txt)
+
+        self.log("test/loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log_dict(self.test_metrics, on_step=False, on_epoch=True, prog_bar=True)
 
         if batch_idx == 0:
             for p, e in zip(predicted_txt, expected_txt, strict=True):
@@ -207,6 +232,9 @@ class HMELightningModule(pl.LightningModule):
     def on_validation_epoch_start(self) -> None:
         self.validation_samples = []
 
+    def on_test_epoch_start(self) -> None:
+        self.test_samples = []
+
     def on_validation_epoch_end(self) -> None:
 
         if self.logger and isinstance(self.logger, WandbLogger) and self.validation_samples:
@@ -218,4 +246,29 @@ class HMELightningModule(pl.LightningModule):
             table = wandb.Table(columns=cols, data=data)
 
             self.logger.experiment.log({"validation_prediction_table": table})
-            self.val_samples = []
+            self.validation_samples = []
+
+    def on_test_epoch_end(self) -> None:
+        
+        if self.logger and isinstance(self.logger, WandbLogger) and self.validation_samples:
+            cols = ["Epoch", "Predicted", "Expected"]
+            data = [
+                (self.current_epoch, s["prediction"], s["expected"])
+                for s in self.validation_samples
+                ]
+            table = wandb.Table(columns=cols, data=data)
+
+            self.logger.experiment.log({"test_prediction_table": table})
+            self.test_samples = []
+
+
+    def on_load_checkpoint(self, checkpoint: dict) -> None:
+
+        state_dict = checkpoint.get("state_dict", {})
+        cleaned_state_dict = {}
+        
+        for key, value in state_dict.items():
+            clean_key = key.replace("._orig_mod.", ".")
+            cleaned_state_dict[clean_key] = value
+            
+        checkpoint["state_dict"] = cleaned_state_dict
