@@ -461,7 +461,7 @@ class HMELightningModule(pl.LightningModule):
 
         return " ".join(expr)
 
-    def _load_pretrained_model(self, pretrained_model_path: str, strict: bool = False):
+    def _load_pretrained_model(self, pretrained_model_path: str, strict: bool = True):
         """Load pretrained weights from a checkpoint file.
 
         Parameters
@@ -480,6 +480,8 @@ class HMELightningModule(pl.LightningModule):
             if (state_dict := pretrained_model.get("state_dict")) is None:
                 logger.warning(f"Couldn't find `state_dict` in {pretrained_model_path}")
             else:
-                self.load_state_dict(state_dict=state_dict, strict=strict)
+                state_clean = {k.replace("._orig_mod", ""): v for k, v in state_dict.items()}
+
+                self.load_state_dict(state_dict=state_clean, strict=strict)
         except Exception as e:
             raise e
