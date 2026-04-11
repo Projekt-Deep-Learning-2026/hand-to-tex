@@ -1,5 +1,4 @@
 import argparse
-import tkinter as tk
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -9,16 +8,22 @@ from hand_to_tex.datasets.dataset import _HMEDatasetBase
 from hand_to_tex.datasets.ink_data import InkData
 from hand_to_tex.models.lit_module import HMELightningModule
 from hand_to_tex.utils import logger
-from hand_to_tex.utils.interactive import HMEDrawingApp
 
 
-def run_batch_inference(
-    input_path_str: str,
-    model: HMELightningModule,
-    device: torch.device,
-    save_img: bool,
-):
-    input_path = Path(input_path_str)
+def main():
+    parser = argparse.ArgumentParser(description="Inference .inkml files with your model")
+    parser.add_argument("--input", type=str, required=True, help="Path to .inkml file or directory")
+    parser.add_argument("--ckpt", type=str, required=True, help="checkpoint .ckpt file path")
+    parser.add_argument(
+        "--vocab",
+        type=str,
+        default="data/assets/vocab.json",
+        help="Vocabulary .json file path",
+    )
+    parser.add_argument("--save-img", action="store_true", help="Save the visualization to a .png")
+    args = parser.parse_args()
+
+    input_path = Path(args.input)
 
     if input_path.is_file():
         inkml_files = [input_path]
@@ -30,68 +35,6 @@ def run_batch_inference(
     if not inkml_files:
         logger.warning(f"No .inkml files found in {input_path}")
         return
-
-    for inkml_path in inkml_files:
-        logger.info(f"\nProcessing: {inkml_path.name}")
-        ink = InkData.load(inkml_path)
-
-        features = _HMEDatasetBase.extract_features(ink)
-
-        if features.size(0) == 0:
-            logger.warning("This .inkml file doesn't contain any traces")
-            continue
-
-        features_batched = features.unsqueeze(0).to(device)
-        lengths = torch.tensor([features.size(0)], dtype=torch.long, device=device)
-
-        with torch.inference_mode():
-            generated_tokens = model.generate(src=features_batched, src_lengths=lengths)
-
-        predicted_expr = model._to_expr(generated_tokens[0]).replace(" ", "")
-
-        expected_expr = ink.tex_norm
-
-        logger.info("=" * 50)
-        logger.info(f"Sample ID: {ink.sample_id}")
-        logger.info(f"Real TeX:  {expected_expr}")
-        logger.info(f"Predicted: {predicted_expr}")
-        logger.info("=" * 50)
-
-        fig, ax = ink.to_fig()
-
-        new_title = (
-            f"Sample: {ink.sample_id} ({ink.tag})\n"
-            f"Expected: ${expected_expr}$\n"
-            f"Predicted: ${predicted_expr}$"
-        )
-        title_color = "darkgreen" if expected_expr == predicted_expr else "darkred"
-
-        ax.set_title(new_title, color=title_color, pad=15)
-
-        if save_img:
-            out_filename = f"pred_{ink.sample_id}.png"
-            fig.savefig(out_filename, bbox_inches="tight", dpi=150)
-            logger.info(f"Visualization saved to {out_filename}")
-            plt.close(fig)
-        else:
-            plt.show()
-
-
-def main():
-    parser = argparse.ArgumentParser(description="HME Demo: Batch Inference or Interactive App")
-    parser.add_argument("--ckpt", type=str, required=True, help="checkpoint .ckpt file path")
-    parser.add_argument("--input", type=str, help="Path to .inkml file or directory")
-    parser.add_argument(
-        "--interactive", action="store_true", help="Launch interactive drawing canvas"
-    )
-    parser.add_argument(
-        "--vocab", type=str, default="data/assets/vocab.json", help="Vocabulary .json file path"
-    )
-    parser.add_argument("--save-img", action="store_true", help="Save the visualization to a .png")
-    args = parser.parse_args()
-
-    if not args.interactive and not args.input:
-        parser.error("--input is required unless --interactive is used.")
 
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -113,13 +56,49 @@ def main():
     model.eval()
     model.to(device)
 
-    if args.interactive:
-        logger.info("Launching interactive mode...")
-        root = tk.Tk()
-        _app = HMEDrawingApp(root, model, device)
-        root.mainloop()
-    else:
-        run_batch_inference(args.input, model, device, args.save_img)
+    for inkml_path in inkml_files:
+        logger.info(f"\nProcessing: {inkml_path.name}")
+        ink = InkData.load(inkml_path)
+
+        features = _HMEDatasetBase.extract_features(ink)
+
+        if features.size(0) == 0:
+            logger.warning("This .inkml file doesn't contain any traces")
+            continue
+
+        features_batched = features.unsqueeze(0).to(device)
+        lengths = torch.tensor([features.size(0)], dtype=torch.long, device=device)
+
+        with torch.inference_mode():
+            generated_tokens = model.generate(src=features_batched, src_lengths=lengths)
+
+        predicted_expr = model._to_expr(generated_tokens[0]).replace(" ", "")
+        expected_expr = ink.tex_norm
+
+        logger.info("=" * 50)
+        logger.info(f"Sample ID: {ink.sample_id}")
+        logger.info(f"Real TeX:  {expected_expr}")
+        logger.info(f"Predicted: {predicted_expr}")
+        logger.info("=" * 50)
+
+        fig, ax = ink.to_fig()
+
+        new_title = (
+            f"Sample: {ink.sample_id} ({ink.tag})\n"
+            f"Expected: ${expected_expr}$\n"
+            f"Predicted: ${predicted_expr}$"
+        )
+        title_color = "darkgreen" if expected_expr == predicted_expr else "darkred"
+
+        ax.set_title(new_title, color=title_color, pad=15)
+
+        if args.save_img:
+            out_filename = f"pred_{ink.sample_id}.png"
+            fig.savefig(out_filename, bbox_inches="tight", dpi=150)
+            logger.info(f"Visualization saved to {out_filename}")
+            plt.close(fig)
+        else:
+            plt.show()
 
 
 if __name__ == "__main__":
