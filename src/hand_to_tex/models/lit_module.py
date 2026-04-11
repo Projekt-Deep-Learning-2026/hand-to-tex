@@ -8,7 +8,7 @@ import torch.optim as optim
 import wandb
 from lightning.pytorch.loggers import WandbLogger
 from torch import Tensor
-from torchmetrics import MetricCollection
+from torchmetrics import MeanMetric, MetricCollection
 from torchmetrics.text import CharErrorRate, WordErrorRate
 
 from hand_to_tex.models.components import ExperimentalTransformer
@@ -99,6 +99,8 @@ class HMELightningModule(pl.LightningModule):
         )
         self.val_metrics = metrics.clone(prefix="val/")
         self.test_metrics = metrics.clone(prefix="test/")
+        self.val_exact_match = MeanMetric()
+        self.test_exact_match = MeanMetric()
 
         self.validation_samples = []
         self.test_samples = []
@@ -203,6 +205,7 @@ class HMELightningModule(pl.LightningModule):
         batch_idx: int,
         stage: Literal["val", "test"],
         metrics: MetricCollection,
+        exact_match_metric: MeanMetric,
         sample_store: list[dict[str, str]],
     ) -> Tensor:
         """Run validation or test logic and collect example predictions.
@@ -217,6 +220,8 @@ class HMELightningModule(pl.LightningModule):
             Logging prefix
         metrics:
             Metric collection used to accumulate sequence scores.
+        exact_match_metric:
+            Exact-match metric aggregated across all batches in an epoch.
         sample_store:
             List used to store example predictions for the current epoch.
 
@@ -235,8 +240,25 @@ class HMELightningModule(pl.LightningModule):
 
         metrics.update(predicted_txt, expected_txt)
 
+        exact_hits = sum(
+            int(pred == exp) for pred, exp in zip(predicted_txt, expected_txt, strict=True)
+        )
+        batch_size = len(predicted_txt)
+        batch_exact_ratio = 100.0 * exact_hits / batch_size if batch_size > 0 else 0.0
+        exact_match_metric.update(
+            torch.tensor(batch_exact_ratio, dtype=torch.float32, device=self.device),
+            weight=batch_size,
+        )
+
         self.log(f"{stage}/loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log_dict(metrics, on_step=False, on_epoch=True, prog_bar=True)
+        self.log(
+            f"{stage}/exact_match",
+            exact_match_metric,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
 
         if batch_idx == 0:
             for prediction, expected_value in zip(predicted_txt, expected_txt, strict=True):
@@ -283,6 +305,7 @@ class HMELightningModule(pl.LightningModule):
             batch_idx=batch_idx,
             stage="val",
             metrics=self.val_metrics,
+            exact_match_metric=self.val_exact_match,
             sample_store=self.validation_samples,
         )
 
@@ -306,6 +329,7 @@ class HMELightningModule(pl.LightningModule):
             batch_idx=batch_idx,
             stage="test",
             metrics=self.test_metrics,
+            exact_match_metric=self.test_exact_match,
             sample_store=self.test_samples,
         )
 
