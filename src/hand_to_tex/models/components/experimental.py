@@ -113,20 +113,22 @@ class ExperimentalTransformer(nn.Module):
 
         return self.fc_out(output)
 
-    def encode(self, src: torch.Tensor, src_lengths: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def encode(
+        self, src: torch.Tensor, src_lengths: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         src_conv = src.transpose(1, 2)
-        
+
         src_features = self.input_proj(src_conv).transpose(1, 2)
 
         conv1_len = ((src_lengths + 2 * 2 - 5) // 2) + 1
         new_src_lengths = ((conv1_len + 2 * 2 - 5) // 2) + 1
 
         src_emb = self.src_pe(src_features)
-        
+
         src_key_padding_mask = self._get_padding_mask(new_src_lengths, src_features.size(1))
 
         memory = self.transformer.encoder(src_emb, src_key_padding_mask=src_key_padding_mask)
-        
+
         return memory, src_key_padding_mask
 
     def decode(self, tgt: Tensor, memory: Tensor, memory_key_padding_mask: Tensor) -> Tensor:
