@@ -18,6 +18,7 @@ class HMELightningModule(pl.LightningModule):
     def __init__(
         self,
         vocab_path: str,
+        pretrained_model_path: str | None = None,
         d_model: int = 256,
         nhead: int = 8,
         num_encoder_layers: int = 4,
@@ -32,6 +33,13 @@ class HMELightningModule(pl.LightningModule):
         super().__init__()
 
         self.vocab = LatexVocab.load(vocab_path)
+
+        if pretrained_model_path is not None:
+            ckpt = torch.load(pretrained_model_path, map_location=lambda storage, loc: storage, weights_only=False)
+            state_dict = ckpt.get("state_dict", {})
+
+        self.load_state_dict(state_dict, strict=False)
+
 
         self.model = ExperimentalTransformer(
             in_channels=10,

@@ -1,4 +1,3 @@
-# lightning.pytorch==2.6.1
 seed_everything: 42
 trainer:
   accelerator: gpu
@@ -9,7 +8,7 @@ trainer:
   logger:
   - class_path: lightning.pytorch.loggers.WandbLogger
     init_args:
-      name: L40S-HTT-2
+      name: L40S-HTT-FULL
       save_dir: .
       version: null
       offline: false
@@ -57,7 +56,7 @@ trainer:
       auto_insert_metric_name: true
       every_n_train_steps: null
       train_time_interval: null
-      every_n_epochs: null
+      every_n_epochs: 5
       save_on_train_epoch_end: null
       enable_version_counter: true
   - class_path: lightning.pytorch.callbacks.EarlyStopping
@@ -96,7 +95,7 @@ trainer:
       console_kwargs: null
   fast_dev_run: false
   max_epochs: 50
-  min_epochs: null
+  min_epochs: 20
   max_steps: -1
   min_steps: null
   max_time: null
@@ -130,6 +129,7 @@ trainer:
   model_registry: null
 model:
   vocab_path: data/assets/vocab.json
+  pretrained_model_path: saved_models/last.ckpt
   d_model: 256
   nhead: 8
   num_encoder_layers: 4
@@ -141,14 +141,13 @@ model:
   label_smoothing: 0.1
   weight_decay: 0.0001
 data:
-  root: data/shorter
+  root: data/full
   vocab_path: data/assets/vocab.json
   processed: true
-  batch_size: 128
+  batch_size: 256
   num_workers: 7
   pin_memory: true
 optimizer: null
 lr_scheduler: null
-ckpt_path: checkpoints/last.ckpt
-verbose: true
+ckpt_path: null
 weights_only: null
