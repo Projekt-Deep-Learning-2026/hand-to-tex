@@ -128,7 +128,7 @@ trainer:
   enable_autolog_hparams: true
   model_registry: null
 model:
-  vocab_path: data/assets/vocab.json
+  vocab_path: &vocab_path data/assets/vocab.json
   pretrained_model_path: saved_models/last.ckpt
   d_model: 256
   nhead: 8
@@ -142,7 +142,7 @@ model:
   weight_decay: 0.0001
 data:
   root: data/full
-  vocab_path: data/assets/vocab.json
+  vocab_path: *vocab_path
   processed: true
   batch_size: 256
   num_workers: 7
