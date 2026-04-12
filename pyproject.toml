@@ -5,6 +5,7 @@ description = "Model to convert handwritten math text into latex format"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "loguru>=0.7.3",
     "matplotlib>=3.10.8",
     "torch>=2.10.0",
     "tqdm>=4.67.3",
@@ -19,7 +20,11 @@ dev = [
 ]
 
 [tool.setuptools]
-package-dir = { "" = "src" }
+package-dir = { "" = "src", "scripts" = "scripts" }
+
+[tool.setuptools.packages.find]
+where = ["src", "."]
+include = ["hand_to_tex*", "scripts*"]
 
 [tool.uv]
 package = true
@@ -45,5 +50,5 @@ select = [
 ignore = ["E501"]
 
 [project.scripts]
-htt-get-data = "hand_to_tex.scripts.download_data:main"
-htt-preprocess = "hand_to_tex.scripts.preprocess:main"
+htt-get-data = "scripts.download_data:main"
+htt-preprocess = "scripts.preprocess:main"

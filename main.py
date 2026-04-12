@@ -1,5 +1,8 @@
+from hand_to_tex.utils import logger
+
+
 def main():
-    print("Hello from hand-to-tex!")
+    logger.info("Hello from hand-to-tex!")
 
 
 if __name__ == "__main__":
