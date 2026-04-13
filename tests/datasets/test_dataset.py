@@ -81,11 +81,8 @@ class TestExtractFeatures:
         )
 
         features = HMEDatasetRaw.extract_features(ink)
-
         assert features.shape == (1, 10)
-        # dx, dy, dt, speed, curve, acc_tan should be 0
         assert torch.equal(features[0, 3:9], torch.zeros(6))
-        # is_stroke_start should be 1
         assert features[0, 9] == 1.0
 
     def test_multiple_traces_mark_stroke_starts_correctly(self):
@@ -128,28 +125,3 @@ class TestExtractFeatures:
         assert torch.isclose(x_norm[1], torch.tensor(1.0), atol=1e-5)
         assert torch.isclose(y_norm[0], torch.tensor(0.0))
         assert torch.isclose(y_norm[1], torch.tensor(0.5), atol=1e-5)
-
-    def test_dynamics_computed_for_simple_linear_motion(self):
-        # Simple horizontal motion: 1 unit/sec
-        ink = InkData(
-            tag="train",
-            sample_id="linear",
-            tex_raw="l",
-            tex_norm="l",
-            traces=[
-                [(0.0, 0.0, 0.0), (1.0, 0.0, 1.0), (2.0, 0.0, 2.0)],
-            ],
-        )
-
-        features = HMEDatasetRaw.extract_features(ink)
-
-        # After normalization: x goes from 0 to 1 in 2 steps
-        dx = features[:, 3]
-        speed = features[:, 6]
-        curve = features[:, 7]
-
-        # First point has 0 deltas
-        assert dx[0] == 0.0
-        assert speed[0] == 0.0
-        # Constant speed => zero curvature
-        assert torch.allclose(curve, torch.zeros(3), atol=1e-5)

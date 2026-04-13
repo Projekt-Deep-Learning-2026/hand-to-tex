@@ -40,26 +40,26 @@ class TestLatexVocabExpr:
     def test_encode_expr_simple(self, vocab: LatexVocab):
         """Simple expression is tokenized correctly."""
         ids = vocab.encode_expr("x+y")
-        assert len(ids) == 3
+        assert len(ids) == 5
 
     def test_encode_expr_with_command(self, vocab: LatexVocab):
         """LaTeX commands are tokenized as single tokens."""
         ids = vocab.encode_expr("\\alpha")
-        assert len(ids) == 1
+        assert len(ids) == 3
 
     def test_encode_expr_complex(self, vocab: LatexVocab):
         """Complex expression tokenizes correctly."""
         ids = vocab.encode_expr("\\frac{a}{b}")
-        # \frac, {, a, }, {, b, }
-        assert len(ids) == 7
+        # <SOS>, \frac, {, a, }, {, b, }, <EOS>
+        assert len(ids) == 9
 
     def test_encode_expr_mathbb(self, vocab: LatexVocab):
         """Blackboard bold is tokenized as single token."""
         ids = vocab.encode_expr("\\mathbb{R}")
-        assert len(ids) == 1
+        assert len(ids) == 3
 
     def test_decode_sequence(self, vocab: LatexVocab):
         """Decode sequence returns list of tokens."""
         ids = vocab.encode_expr("x+y")
         tokens = vocab.decode_sequence(ids)
-        assert tokens == ["x", "+", "y"]
+        assert tokens == ["<SOS>", "x", "+", "y", "<EOS>"]

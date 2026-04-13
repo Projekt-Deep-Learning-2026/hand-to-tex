@@ -5,10 +5,16 @@ description = "Model to convert handwritten math text into latex format"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "lightning>=2.6.1",
     "loguru>=0.7.3",
     "matplotlib>=3.10.8",
-    "torch>=2.10.0",
+    "torch>=2.1.0",
+    "torchmetrics>=1.9.0",
     "tqdm>=4.67.3",
+    "wandb>=0.25.1",
+    "jsonargparse[signatures]>=4.27.7",
+    "rich>=10.2.2",
+    "typing-extensions>=4.15.0",
 ]
 
 [dependency-groups]
@@ -52,3 +58,11 @@ ignore = ["E501"]
 [project.scripts]
 htt-get-data = "scripts.download_data:main"
 htt-preprocess = "scripts.preprocess:main"
+
+[tool.uv.sources]
+torch = { index = "pytorch" }
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true

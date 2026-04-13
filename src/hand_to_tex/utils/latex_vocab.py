@@ -158,6 +158,8 @@ class LatexVocab:
         Uses regex-based tokenization to split the expression into tokens,
         then encodes each token to its integer ID.
 
+        Encoded sequence always starts with additional `SOS` and ends with `EOS`
+
         Parameters
         ----------
         expr : str
@@ -184,7 +186,7 @@ class LatexVocab:
             tokens.append(t)
             expr = expr[len(t) :]
 
-        return [self.encode(t) for t in tokens]
+        return [self.SOS] + [self.encode(t) for t in tokens] + [self.EOS]
 
     def decode_sequence(self, token_ids: list[int]) -> list[str]:
         """Decode a list of token IDs to token strings.
@@ -200,3 +202,6 @@ class LatexVocab:
             List of token strings. Unknown IDs are decoded as `<UNK>`.
         """
         return [self.decode(t_id) for t_id in token_ids]
+
+    def __len__(self) -> int:
+        return len(self._encode)
