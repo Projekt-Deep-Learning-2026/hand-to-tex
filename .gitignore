@@ -8,8 +8,7 @@ __pycache__/
 
 # dataset
 data/*
-!data/assets/
-!data/sample/
+!data/assets/*
 
 # Distribution / packaging
 .Python
