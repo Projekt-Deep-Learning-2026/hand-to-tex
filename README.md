@@ -77,16 +77,17 @@ Common options:
 2. `--vocab`: vocabulary path (default: `data/assets/vocab.json`)
 3. `--threads`: number of worker processes
 4. `--splits`: selected splits to preprocess
-5. `--out-dir`: output directory for generated .pt files
-6. `--capacity`: limit number of kept samples per split
-7. `--max-tokens`: filter out long token sequences
-8. `--max-tracepoints`: filter out long traces
+5. `--merge`: selected additional data to merge into created splits
+6. `--out-dir`: output directory for generated .pt files
+7. `--capacity`: limit number of kept samples per split
+8. `--max-tokens`: filter out long token sequences
+9. `--max-tracepoints`: filter out long traces
 
 Examples:
 
 ```bash
-uv run htt-preprocess --threads 12 --splits train valid test symbols
-uv run htt-preprocess --threads 4 --splits symbols
+uv run htt-preprocess --threads 12 --splits train valid test 
+uv run htt-preprocess --threads 4 --splits test
 ```
 
 ## Training Config Profiles
