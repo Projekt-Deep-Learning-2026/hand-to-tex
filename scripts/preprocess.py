@@ -203,7 +203,12 @@ def merge_into(
 
     for spl in splits:
         split_path = Path(out_dir, spl + ".pt")
-        d = torch.load(split_path, weights_only=True)
+
+        if split_path.exists():
+            d = torch.load(split_path, weights_only=True)
+        else:
+            logger.warning(f"Base split `{split_path}` was not found, merging into empty")
+            d = []
         d.extend(data_to_append[spl])
         torch.save(d, split_path)
 
@@ -301,10 +306,10 @@ def validate_parser(parser: argparse.ArgumentParser) -> argparse.Namespace:
         )
 
     if args.threads is not None and args.threads <= 0:
-        parser.error(f"Argument --threads, if passed, must be >= 0 (got {args.threads})")
+        parser.error(f"Argument --threads, if passed, must be > 0 (got {args.threads})")
 
     if args.start_idx is not None and args.start_idx < 0:
-        parser.error(f"Argument --start_idx, if passed, must be >= 0 (got {args.start_idx})")
+        parser.error(f"Argument --start-idx, if passed, must be >= 0 (got {args.start_idx})")
 
     if args.merge:
         if len(args.merge) != len(set(args.merge)):
