@@ -72,6 +72,7 @@ def preprocess_split(
     max_tokens: int | None,
     max_tracepoints: int | None,
 ):
+    """Preprocess one split and save accepted samples into a .pt file."""
     split_dir = root / split_name
     if not split_dir.exists():
         logger.error(f"Directory {split_dir} not found")
@@ -169,6 +170,7 @@ def preprocess_split(
 def merge_into(
     merge_data: list[tuple[torch.Tensor, torch.Tensor]], out_dir: Path, splits: list[SPLIT_T]
 ):
+    """Shuffle and merge samples into selected output splits by configured weights."""
 
     shuffled = list(merge_data)
     rng = random.Random(MERGE_SPLIT_SEED)
@@ -217,6 +219,7 @@ def merge_into(
 
 
 def get_parser() -> argparse.ArgumentParser:
+    """Create the CLI argument parser for preprocessing."""
     parser = argparse.ArgumentParser(description="Pre-processing of dataset Hand-to-TeX")
     parser.add_argument(
         "--root",
@@ -292,6 +295,7 @@ def get_parser() -> argparse.ArgumentParser:
 
 
 def validate_parser(parser: argparse.ArgumentParser) -> argparse.Namespace:
+    """Parse and validate CLI arguments."""
     args = parser.parse_args()
 
     if args.capacity is not None and args.capacity <= 0:
@@ -319,6 +323,7 @@ def validate_parser(parser: argparse.ArgumentParser) -> argparse.Namespace:
 
 
 def main():
+    """Run preprocessing for requested splits and optional merge folders."""
     parser = get_parser()
     args = validate_parser(parser)
 
