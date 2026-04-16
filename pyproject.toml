@@ -58,6 +58,8 @@ ignore = ["E501"]
 [project.scripts]
 htt-get-data = "scripts.download_data:main"
 htt-preprocess = "scripts.preprocess:main"
+htt-init = "scripts.init:main"
+htt-run = "hand_to_tex.cli.run:main"
 
 [tool.uv.sources]
 torch = { index = "pytorch" }

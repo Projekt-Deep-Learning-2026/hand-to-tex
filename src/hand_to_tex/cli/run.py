@@ -3,8 +3,8 @@ import os
 import torch
 from lightning.pytorch.cli import LightningCLI
 
-from src.hand_to_tex.datasets.datamodule import HMELightningDataModule
-from src.hand_to_tex.models.lit_module import HMELightningModule
+from hand_to_tex.datasets.datamodule import HMELightningDataModule
+from hand_to_tex.models.lit_module import HMELightningModule
 
 
 class HandToTexCLI(LightningCLI):
@@ -18,13 +18,8 @@ class HandToTexCLI(LightningCLI):
 
 
 def main():
-
     HandToTexCLI(
         model_class=HMELightningModule,
         datamodule_class=HMELightningDataModule,
         save_config_kwargs={"overwrite": True},
     )
-
-
-if __name__ == "__main__":
-    main()

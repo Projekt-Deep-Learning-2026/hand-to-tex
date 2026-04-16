@@ -1,6 +1,8 @@
 import argparse
 import concurrent.futures
 import itertools
+import random
+import shutil
 from pathlib import Path
 from typing import Literal
 
@@ -11,7 +13,14 @@ from hand_to_tex.datasets import HMEDatasetRaw, InkData
 from hand_to_tex.utils import LatexVocab, logger
 
 BATCH_SIZE = 1000
-SPLITS = ["train", "valid", "test", "symbols"]
+SPLITS = ["train", "valid", "test"]
+SPLIT_T = Literal["train", "valid", "test"]
+MERGE_SPLIT_SEED = 42
+MERGE_WEIGHTS = {
+    "train": 0.8,
+    "valid": 0.1,
+    "test": 0.1,
+}
 DATASET_PATH = Path("./data/mathwriting-2024")
 VOCAB_PATH = Path("./data/assets/vocab.json")
 
@@ -63,6 +72,7 @@ def preprocess_split(
     max_tokens: int | None,
     max_tracepoints: int | None,
 ):
+    """Preprocess one split and save accepted samples into a .pt file."""
     split_dir = root / split_name
     if not split_dir.exists():
         logger.error(f"Directory {split_dir} not found")
@@ -157,7 +167,59 @@ def preprocess_split(
         logger.info(f"Cleaned {len(temp_files)} temp files succesfully")
 
 
+def merge_into(
+    merge_data: list[tuple[torch.Tensor, torch.Tensor]], out_dir: Path, splits: list[SPLIT_T]
+):
+    """Shuffle and merge samples into selected output splits by configured weights."""
+
+    shuffled = list(merge_data)
+    rng = random.Random(MERGE_SPLIT_SEED)
+    rng.shuffle(shuffled)
+
+    total = len(shuffled)
+    total_weight = sum(MERGE_WEIGHTS[spl] for spl in splits)
+    normalized_weights = {spl: MERGE_WEIGHTS[spl] / total_weight for spl in splits}
+
+    counts: dict[SPLIT_T, int] = {spl: int(total * normalized_weights[spl]) for spl in splits}
+    used = sum(counts.values())
+    if used < total:
+        remainder = total - used
+        ordered = sorted(
+            splits,
+            key=lambda spl: (total * normalized_weights[spl] - counts[spl], SPLITS.index(spl)),
+            reverse=True,
+        )
+        for i in range(remainder):
+            counts[ordered[i % len(ordered)]] += 1
+
+    data_to_append: dict[SPLIT_T, list[tuple[torch.Tensor, torch.Tensor]]] = {
+        "train": [],
+        "valid": [],
+        "test": [],
+    }
+    left = 0
+    for spl in splits:
+        right = left + counts[spl]
+        data_to_append[spl] = shuffled[left:right]
+        left = right
+
+    for spl in splits:
+        split_path = Path(out_dir, spl + ".pt")
+
+        if split_path.exists():
+            d = torch.load(split_path, weights_only=True)
+        else:
+            logger.warning(f"Base split `{split_path}` was not found, merging into empty")
+            d = []
+        d.extend(data_to_append[spl])
+        torch.save(d, split_path)
+
+    summary = ", ".join(f"{spl}={counts[spl]}" for spl in splits)
+    logger.info(f"Merged samples summary: total={total} ({summary})")
+
+
 def get_parser() -> argparse.ArgumentParser:
+    """Create the CLI argument parser for preprocessing."""
     parser = argparse.ArgumentParser(description="Pre-processing of dataset Hand-to-TeX")
     parser.add_argument(
         "--root",
@@ -220,34 +282,48 @@ def get_parser() -> argparse.ArgumentParser:
         required=False,
         help="Setting this parameter enables you to omit samples that have more than this many tracepoints in feature representation",
     )
+    parser.add_argument(
+        "--merge",
+        nargs="+",
+        type=str,
+        required=False,
+        default=[],
+        help="List of folders in `--root` to merge into splits that will be created in current run",
+    )
 
     return parser
 
 
 def validate_parser(parser: argparse.ArgumentParser) -> argparse.Namespace:
+    """Parse and validate CLI arguments."""
     args = parser.parse_args()
 
     if args.capacity is not None and args.capacity <= 0:
-        parser.error(f"Argument --capacity, when passed, must be > 0 (got {args.capacity})")
+        parser.error(f"Argument --capacity, if passed, must be > 0 (got {args.capacity})")
 
     if args.max_tokens is not None and args.max_tokens <= 0:
-        parser.error(f"Argument --max-tokens, when passed, must be > 0 (got {args.max_tokens})")
+        parser.error(f"Argument --max-tokens, if passed, must be > 0 (got {args.max_tokens})")
 
     if args.max_tracepoints is not None and args.max_tracepoints <= 0:
         parser.error(
-            f"Argument --max-tracepoints, when passed, must be > 0 (got {args.max_tracepoints})"
+            f"Argument --max-tracepoints, if passed, must be > 0 (got {args.max_tracepoints})"
         )
 
     if args.threads is not None and args.threads <= 0:
-        parser.error(f"Argument --threads, when passed, must be >= 0 (got {args.threads})")
+        parser.error(f"Argument --threads, if passed, must be > 0 (got {args.threads})")
 
     if args.start_idx is not None and args.start_idx < 0:
-        parser.error(f"Argument --start_idx, when passed, must be >= 0 (got {args.start_idx})")
+        parser.error(f"Argument --start-idx, if passed, must be >= 0 (got {args.start_idx})")
+
+    if args.merge:
+        if len(args.merge) != len(set(args.merge)):
+            parser.error("Argument --merge cannot contain duplicated folder names")
 
     return args
 
 
 def main():
+    """Run preprocessing for requested splits and optional merge folders."""
     parser = get_parser()
     args = validate_parser(parser)
 
@@ -268,6 +344,35 @@ def main():
             max_tokens=args.max_tokens,
             max_tracepoints=args.max_tracepoints,
         )
+
+    if to_merge := list(args.merge):
+        merge_tmp = Path(out_dir, ".merge_tmp")
+        merge_tmp.mkdir(parents=True, exist_ok=True)
+        try:
+            logger.info(f"Preprocessing merge folders: {', '.join(to_merge)}")
+            for merging in to_merge:
+                preprocess_split(
+                    root=root,
+                    out_dir=merge_tmp,
+                    split_name=merging,
+                    vocab=vocab,
+                    num_workers=args.threads,
+                    start_idx=args.start_idx,
+                    capacity=args.capacity,
+                    max_tokens=args.max_tokens,
+                    max_tracepoints=args.max_tracepoints,
+                )
+                merge_pt = merge_tmp / (merging + ".pt")
+                if not merge_pt.exists():
+                    logger.warning(f"Skipping merge {merging}: no preprocessed file produced")
+                    continue
+
+                merge_data = torch.load(merge_pt, weights_only=True)
+                merge_into(merge_data=merge_data, out_dir=out_dir, splits=args.splits)
+
+        finally:
+            if merge_tmp.exists():
+                shutil.rmtree(merge_tmp, ignore_errors=True)
 
 
 if __name__ == "__main__":
