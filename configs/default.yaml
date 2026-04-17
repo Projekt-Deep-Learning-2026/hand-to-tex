@@ -8,7 +8,7 @@ trainer:
   logger:
   - class_path: lightning.pytorch.loggers.WandbLogger
     init_args:
-      name: L40S-HTT-FULL
+      name: L40S-HTT-EXTENDED
       save_dir: .
       version: null
       offline: false
