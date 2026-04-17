@@ -217,6 +217,7 @@ class ExperimentalTransformer(nn.Module):
             tgt=tgt_emb,
             src_mask=None,
             tgt_mask=tgt_causal_mask,
+            tgt_is_causal=True,
             memory_mask=None,
             src_key_padding_mask=src_key_padding_mask,
             tgt_key_padding_mask=tgt_key_padding_mask,
@@ -282,6 +283,7 @@ class ExperimentalTransformer(nn.Module):
             tgt=tgt_emb,
             memory=memory,
             tgt_mask=tgt_causal_mask,
+            tgt_is_causal=True,
             tgt_key_padding_mask=tgt_key_padding_mask,
             memory_key_padding_mask=memory_key_padding_mask,
         )
