@@ -8,7 +8,7 @@ from torch import Tensor
 from torch.utils.data.dataset import Dataset
 
 from hand_to_tex.datasets.ink_data import InkData
-from hand_to_tex.utils import LatexVocab
+from hand_to_tex.utils import LatexVocab, logger
 
 
 class _HMEDatasetBase(Dataset, ABC):
@@ -256,10 +256,29 @@ class HMEDatasetPreprocessed(_HMEDatasetBase):
         split: str,
         vocab: LatexVocab | None = None,
         transform: Callable[[Tensor], Tensor] | None = None,
+        min_len: int | None = None,
+        max_len: int | None = None,
     ):
         super().__init__(root=root, split=split, vocab=vocab, transform=transform)
         data_path = Path(root, split + ".pt")
-        self.data = torch.load(data_path)
+        raw_data: list[tuple[torch.Tensor, torch.Tensor]] = torch.load(data_path)
+
+        self.data = []
+        filtered_out = 0
+        for fts, ts in raw_data:
+            ft_len = fts.size(0)
+
+            if (min_len is not None and ft_len < min_len) or (
+                max_len is not None and ft_len > max_len
+            ):
+                filtered_out += 1
+            else:
+                self.data.append((fts, ts))
+
+        if filtered_out:
+            logger.warning(
+                f"For min={min_len}, max={max_len}, split={split} filtered out: {filtered_out} samples"
+            )
 
     def __len__(self) -> int:
         return len(self.data)

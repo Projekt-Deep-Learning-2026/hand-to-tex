@@ -30,6 +30,8 @@ class HMEDataLoaderFactory:
         batch_size: int,
         num_workers: int,
         pin_memory: bool,
+        min_len: int | None,
+        max_len: int | None,
     ):
         """Creates a DataLoader factory that can produce HMEDataset dataloaders
 
@@ -54,6 +56,8 @@ class HMEDataLoaderFactory:
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
+        self.min_len = min_len
+        self.max_len = max_len
 
         self.collate_fn = HMECollateFunction(self.vocab)
 
@@ -71,8 +75,22 @@ class HMEDataLoaderFactory:
             DataLoader for training data with shuffling and drop_last=True
 
         """
-        dataset_type = HMEDatasetPreprocessed if self.processed else HMEDatasetRaw
-        dataset = dataset_type(root=self.root, split="train", vocab=self.vocab, transform=transform)
+        if self.processed:
+            dataset = HMEDatasetPreprocessed(
+                root=self.root,
+                split="train",
+                vocab=self.vocab,
+                transform=transform,
+                min_len=self.min_len,
+                max_len=self.max_len,
+            )
+        else:
+            dataset = HMEDatasetRaw(
+                root=self.root,
+                split="train",
+                vocab=self.vocab,
+                transform=transform,
+            )
 
         return DataLoader(
             dataset=dataset,
@@ -98,8 +116,22 @@ class HMEDataLoaderFactory:
             DataLoader for validation data without shuffling and drop_last=False
 
         """
-        dataset_type = HMEDatasetPreprocessed if self.processed else HMEDatasetRaw
-        dataset = dataset_type(root=self.root, split="valid", vocab=self.vocab, transform=transform)
+        if self.processed:
+            dataset = HMEDatasetPreprocessed(
+                root=self.root,
+                split="valid",
+                vocab=self.vocab,
+                transform=transform,
+                min_len=self.min_len,
+                max_len=self.max_len,
+            )
+        else:
+            dataset = HMEDatasetRaw(
+                root=self.root,
+                split="valid",
+                vocab=self.vocab,
+                transform=transform,
+            )
 
         return DataLoader(
             dataset=dataset,
@@ -124,8 +156,22 @@ class HMEDataLoaderFactory:
         DataLoader
             DataLoader for test data without shuffling and drop_last=False
         """
-        dataset_type = HMEDatasetPreprocessed if self.processed else HMEDatasetRaw
-        dataset = dataset_type(root=self.root, split="test", vocab=self.vocab, transform=transform)
+        if self.processed:
+            dataset = HMEDatasetPreprocessed(
+                root=self.root,
+                split="test",
+                vocab=self.vocab,
+                transform=transform,
+                min_len=self.min_len,
+                max_len=self.max_len,
+            )
+        else:
+            dataset = HMEDatasetRaw(
+                root=self.root,
+                split="test",
+                vocab=self.vocab,
+                transform=transform,
+            )
 
         return DataLoader(
             dataset=dataset,
@@ -160,10 +206,22 @@ class HMEDataLoaderFactory:
             Configured DataLoader for the specified split
         """
         split_name = split.lower()
-        dataset_type = HMEDatasetPreprocessed if self.processed else HMEDatasetRaw
-        dataset = dataset_type(
-            root=self.root, split=split_name, vocab=self.vocab, transform=transform
-        )
+        if self.processed:
+            dataset = HMEDatasetPreprocessed(
+                root=self.root,
+                split=split_name,
+                vocab=self.vocab,
+                transform=transform,
+                min_len=self.min_len,
+                max_len=self.max_len,
+            )
+        else:
+            dataset = HMEDatasetRaw(
+                root=self.root,
+                split=split_name,
+                vocab=self.vocab,
+                transform=transform,
+            )
 
         defaults = {
             "dataset": dataset,
