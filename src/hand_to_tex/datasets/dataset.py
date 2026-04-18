@@ -261,23 +261,36 @@ class HMEDatasetPreprocessed(_HMEDatasetBase):
     ):
         super().__init__(root=root, split=split, vocab=vocab, transform=transform)
         data_path = Path(root, split + ".pt")
-        raw_data: list[tuple[torch.Tensor, torch.Tensor]] = torch.load(data_path)
 
+        logger.info(f"Loading preprocessed HMEDataset from: {data_path}")
+        raw_data: list[tuple[torch.Tensor, torch.Tensor]] = torch.load(data_path, weights_only=True)
+
+        logger.info(f"Filtering data for split: {split}")
         self.data = []
-        filtered_out = 0
+        short, long, has_inf, has_nan = 0, 0, 0, 0
         for fts, ts in raw_data:
             ft_len = fts.size(0)
 
-            if (min_len is not None and ft_len < min_len) or (
-                max_len is not None and ft_len > max_len
-            ):
-                filtered_out += 1
+            if min_len is not None and ft_len < min_len:
+                short += 1
+
+            elif max_len is not None and ft_len > max_len:
+                long += 1
+
+            elif torch.isinf(fts).any():
+                has_inf += 1
+
+            elif torch.isnan(fts).any():
+                has_nan += 1
+
             else:
                 self.data.append((fts, ts))
 
-        if filtered_out:
+        total, filtered = len(self.data), (short + long + has_inf + has_nan)
+
+        if filtered:
             logger.warning(
-                f"For min={min_len}, max={max_len}, split={split} filtered out: {filtered_out} samples"
+                f"For min={min_len}, max={max_len} split={split} got short={short} | long={long} | has_inf={has_inf} | has_nan={has_nan} | total={total}/{filtered}"
             )
 
     def __len__(self) -> int:
