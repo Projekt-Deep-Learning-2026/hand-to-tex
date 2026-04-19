@@ -10,6 +10,11 @@ __pycache__/
 data/*
 !data/assets/*
 
+# training
+checkpoint/*
+checkpoints/*
+wandb/*
+
 # Distribution / packaging
 .Python
 build/
