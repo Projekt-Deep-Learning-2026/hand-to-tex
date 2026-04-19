@@ -25,7 +25,7 @@ uv sync --dev
 uv run pre-commit install
 ```
 
-4. Initialize full data pipeline (download + preprocess).
+4. Initialize standard data pipeline (download + preprocess).
 
 ```bash
 uv run htt-init --threads 8
@@ -34,17 +34,25 @@ uv run htt-init --threads 8
 By default this runs:
 
 1. `htt-get-data --full`
-2. `htt-preprocess --threads <N> --out-dir data/full --merge synthetic symbols`
+2. `htt-preprocess --threads <N> --out-dir data/full`
 
 5. For a quick mock/sample setup use:
 
 ```bash
-uv run htt-init --mock --threads 4
+uv run htt-init --mode mock --threads 4
 ```
 
 Mock mode runs excerpt download and preprocesses into `data/sample`.
 
-6. Train a baseline model.
+6. For extended preprocessing with additional merges use:
+
+```bash
+uv run htt-init --mode extended --threads 8
+```
+
+Extended mode runs full download and preprocesses into `data/extended` with `synthetic` and `symbols` merged.
+
+7. Train a baseline model.
 
 ```bash
 uv run htt-run fit --config configs/default.yaml
@@ -59,14 +67,18 @@ One-command initialization for dataset preparation.
 Options:
 
 1. `--threads`: number of worker processes passed to preprocessing (default: `1`)
-2. `--mock`: use excerpt dataset instead of full dataset
+2. `--mode`: initialization mode (default: `standard`)
+	- `mock`: excerpt dataset + preprocess to `data/sample`
+	- `standard`: full dataset + preprocess to `data/full`
+	- `extended`: full dataset + preprocess to `data/extended` with `synthetic` and `symbols` merge
 
 Examples:
 
 ```bash
 uv run htt-init
 uv run htt-init --threads 8
-uv run htt-init --mock --threads 4
+uv run htt-init --mode mock --threads 4
+uv run htt-init --mode extended --threads 8
 ```
 
 ### htt-get-data
