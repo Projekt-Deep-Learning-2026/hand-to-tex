@@ -1,199 +1,226 @@
-# hand-to-tex
+# Hand-to-TeX
 
-Model for converting online handwritten mathematical expressions into LaTeX.
+Hand-to-TeX is a deep learning project for converting online handwritten mathematical expressions (InkML stroke data) into LaTeX.
+
+It includes the full workflow:
+
+- dataset download
+- preprocessing into efficient `.pt` tensors
+- model training and evaluation (PyTorch Lightning)
+- batch and interactive inference
 
 ## Quick Start
 
-This repository uses uv for dependency management.
+### 1. Prerequisites
 
-1. Clone the repository.
+- Python 3.12+
+- `uv` installed (`pip install uv`)
+
+### 2. Install dependencies
 
 ```bash
 git clone https://github.com/Projekt-Deep-Learning-2026/hand-to-tex.git
 cd hand-to-tex
-```
-
-2. Install dependencies.
-
-```bash
 uv sync --dev
 ```
 
-3. (Optional) install pre-commit hooks.
+### 3. Activate your virtual environment (recommended)
+
+If you activate `.venv`, you can run project commands directly without prefixing them with `uv run`.
 
 ```bash
-uv run pre-commit install
+# Git Bash (Windows)
+source .venv/Scripts/activate
+
+# PowerShell (Windows)
+.venv\Scripts\Activate.ps1
 ```
 
-4. Initialize standard data pipeline (download + preprocess).
+### 4. Run a prediction immediately (no training)
+
+This uses the checkpoint already included in the repository:
 
 ```bash
-uv run htt-init --threads 8
+htt-demo --ckpt data/models/last.ckpt --input tests/fixtures/sample.inkml
 ```
 
-By default this runs:
+You should see predicted TeX in logs and a rendered plot window.
 
-1. `htt-get-data --full`
-2. `htt-preprocess --threads <N> --out-dir data/full`
-
-5. For a quick mock/sample setup use:
+### 5. Prepare data with one command
 
 ```bash
-uv run htt-init --mode mock --threads 4
+htt-init --mode standard --threads 8
 ```
 
-Mock mode runs excerpt download and preprocesses into `data/sample`.
+### 6. Train
 
-6. For extended preprocessing with additional merges use:
+Training setup is managed by Lightning CLI through `htt-run` and YAML configs in `configs/`.
 
 ```bash
-uv run htt-init --mode extended --threads 8
+htt-run fit --config configs/default.yaml
 ```
 
-Extended mode runs full download and preprocesses into `data/extended` with `synthetic` and `symbols` merged.
-
-7. Train a baseline model.
+### 7. Evaluate
 
 ```bash
-uv run htt-run fit --config configs/default.yaml
+htt-run test --config configs/default.yaml --ckpt_path checkpoints/last.ckpt
 ```
 
-## Scripts
+## Core CLI Commands
 
-### htt-init
+Installed entrypoints:
 
-One-command initialization for dataset preparation.
+- `htt-init`: one-command data initialization (download + preprocess)
+- `htt-get-data`: download raw MathWriting archives
+- `htt-preprocess`: convert InkML to `.pt` tensors
+- `htt-run`: train/test with Lightning CLI
+- `htt-demo`: run inference on files or interactive canvas
 
-Options:
+Use `<command> --help` for full options.
 
-1. `--threads`: number of worker processes passed to preprocessing (default: `1`)
-2. `--mode`: initialization mode (default: `standard`)
-	- `mock`: excerpt dataset + preprocess to `data/sample`
-	- `standard`: full dataset + preprocess to `data/full`
-	- `extended`: full dataset + preprocess to `data/extended` with `synthetic` and `symbols` merge
+## Data Initialization Modes (`htt-init`)
+
+`htt-init` supports three modes via `--mode`:
+
+| Mode | What it does | Output |
+|---|---|---|
+| `mock` | Downloads excerpt dataset and preprocesses with synthetic/symbol merges | `data/sample` |
+| `standard` | Downloads full dataset and preprocesses base splits | `data/full` |
+| `extended` | Downloads full dataset and preprocesses with synthetic/symbol merges | `data/extended` |
 
 Examples:
 
 ```bash
-uv run htt-init
-uv run htt-init --threads 8
-uv run htt-init --mode mock --threads 4
-uv run htt-init --mode extended --threads 8
+# Fast local check / small data
+htt-init --mode mock --threads 4
+
+# Standard full-data setup
+htt-init --mode standard --threads 8
+
+# Extended setup with extra merged data
+htt-init --mode extended --threads 8
 ```
 
-### htt-get-data
+## Manual Data Pipeline
 
-Download dataset archives.
-
-Options:
-
-1. `--full`: download full MathWriting dataset
-
-Examples:
+### Download raw data
 
 ```bash
-uv run htt-get-data
-uv run htt-get-data --full
+# Excerpt dataset
+htt-get-data
+
+# Full dataset
+htt-get-data --full
 ```
 
-### htt-preprocess
-
-Convert InkML files to tensor samples in `.pt` format.
-
-Common options:
-
-1. `--root`: source dataset root (default: `data/mathwriting-2024`)
-2. `--vocab`: vocabulary path (default: `data/assets/vocab.json`)
-3. `--threads`: number of worker processes
-4. `--splits`: selected splits to preprocess (`train`, `valid`, `test`)
-5. `--merge`: additional folders from `--root` to merge into selected splits
-6. `--out-dir`: output directory for generated `.pt` files
-7. `--start-idx`: skip first N files
-8. `--capacity`: limit number of kept samples per split
-9. `--max-tokens`: filter out long token sequences
-10. `--max-tracepoints`: filter out long trace sequences
-
-Examples:
+### Preprocess raw InkML into `.pt`
 
 ```bash
-uv run htt-preprocess --threads 12 --splits train valid test
-uv run htt-preprocess --threads 4 --splits test
-uv run htt-preprocess --threads 8 --out-dir data/full --merge synthetic symbols
+htt-preprocess --root data/mathwriting-2024 --out-dir data/full --threads 8
 ```
 
-### htt-run
+Common useful options:
 
-Entry point for the project runtime CLI.
+- `--splits train valid test`
+- `--merge synthetic symbols`
+- `--capacity <N>`
+- `--max-tokens <N>`
+- `--max-tracepoints <N>`
+- `--start-idx <N>`
 
-## Dataset
+## Training and Evaluation
 
-The project uses Google MathWriting (InkML-based online handwriting).
+This project uses Lightning CLI for training setup, configuration, and command routing (`fit`, `test`).
 
-Important raw splits include:
 
-1. train
-2. valid
-3. test
-4. symbols
-5. synthetic
-
-Use normalized labels as training targets.
-
-## Training
-
-Configuration profiles are stored in `configs/`.
-
-1. `configs/default.yaml`: full training profile (`data/full`)
-2. `configs/short.yaml`: short profile for faster experiments (`data/shorter`)
-
-Train with full profile:
+### Train with the default profile
 
 ```bash
-uv run htt-run fit --config configs/default.yaml
+htt-run fit --config configs/default.yaml
 ```
 
-Train with short profile:
+### Train on a different processed dataset root
 
 ```bash
-uv run htt-run fit --config configs/short.yaml
+htt-run fit --config configs/default.yaml --data.root data/extended
 ```
 
-Override values from CLI (example):
+### Quick sanity training on smaller data
 
 ```bash
-uv run htt-run fit --config configs/short.yaml --trainer.max_epochs 5 --data.batch_size 64
+htt-run fit --config configs/short.yaml --data.root data/sample --trainer.max_epochs 2
 ```
 
-Run test with a checkpoint:
+### Test a checkpoint
 
 ```bash
-uv run htt-run test --config configs/default.yaml --ckpt_path path/to/checkpoint.ckpt
+htt-run test --config configs/default.yaml --ckpt_path checkpoints/last.ckpt
 ```
 
-## Weights & Biases (WandB)
+## Inference / Demo
 
-Project dashboard:
+### Batch inference from one file
 
-- https://wandb.ai/dl-26-uniwroc-team1/hand-to-tex
+```bash
+htt-demo --ckpt data/models/last.ckpt --input tests/fixtures/sample.inkml
+```
 
+### Batch inference from directory
+
+```bash
+htt-demo --ckpt data/models/last.ckpt --input data/mathwriting-2024/test
+```
+
+### Save visualization images
+
+```bash
+htt-demo --ckpt data/models/last.ckpt --input tests/fixtures --save-img
+```
+
+### Interactive drawing mode
+
+```bash
+htt-demo --ckpt data/models/last.ckpt --interactive
+```
+
+## Configuration Profiles
+
+- `configs/default.yaml`: main training profile, expects processed data in `data/full`.
+- `configs/short.yaml`: lighter profile for short experiments.
+
+Both are standard Lightning CLI configs and can be overridden from command line.
 
 ## Development
 
 Run tests:
 
 ```bash
-uv run pytest
+pytest
 ```
 
-Lint and format checks:
+Run lint/format checks:
 
 ```bash
-uv run ruff check .
-uv run ruff format .
+ruff check .
+ruff format .
 ```
 
-## Notes
+Install pre-commit hooks:
 
-1. The training module logs text metrics and exact-match ratio on validation and test.
-2. WandB logger is configured through Lightning config files.
-3. If you change dataset paths or vocabulary, update the selected config profile.
+```bash
+pre-commit install
+```
+
+## Project Structure
+
+```text
+configs/                # training profiles
+scripts/                # CLI scripts: init/download/preprocess/demo
+src/hand_to_tex/        # core package: datasets, model, utils, runtime CLI
+tests/                  # unit tests
+data/                   # raw and processed datasets, checkpoints
+```
+
+## License
+
+MIT. See `LICENSE`.
