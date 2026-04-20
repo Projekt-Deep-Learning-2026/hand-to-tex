@@ -128,7 +128,6 @@ class HMEDrawingApp:
         self.current_trace = []
         self.start_time = None
 
-        # Reset silnika renderującego
         self.text_obj.set_color("black")
         self.text_obj.set_text("Draw a symbol and press Generate")
         self.latex_canvas.draw()
