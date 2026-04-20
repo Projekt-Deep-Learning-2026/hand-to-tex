@@ -28,13 +28,13 @@ class _HMEDatasetBase(Dataset, ABC):
 
         Parameters
         ----------
-        root : Path | str
+        root
             Directory of all dataset files
-        split : str
+        split
             Name of the split, the path to .inkml files dir. will be root/split
-        vocab : LatexVocab | None
+        vocab
             Vocabulary for tokenization, default `LatexVocab.default()`
-        transform : (`Tensor` -> `Tensor`) | None
+        transform
             Optional transformation applied to features before returning
         """
         self.data_path = Path(root, split)
@@ -286,11 +286,11 @@ class HMEDatasetPreprocessed(_HMEDatasetBase):
             else:
                 self.data.append((fts, ts))
 
-        total, filtered = len(self.data), (short + long + has_inf + has_nan)
+        kept, filtered = len(self.data), (short + long + has_inf + has_nan)
 
         if filtered:
             logger.warning(
-                f"For min={min_len}, max={max_len} split={split} got short={short} | long={long} | has_inf={has_inf} | has_nan={has_nan} | total={total}/{filtered}"
+                f"For min={min_len}, max={max_len} split={split} got short={short} | long={long} | has_inf={has_inf} | has_nan={has_nan} | total={kept}/{kept + filtered}"
             )
 
     def __len__(self) -> int:
