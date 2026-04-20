@@ -6,7 +6,7 @@ from torch import Tensor
 
 
 class PositionalEncoding(nn.Module):
-    """Sinusoidal positional encoding for sequence-first transformer inputs.
+    """Sinusoidal positional encoding for batch-first transformer inputs.
 
     The module expects tensors shaped `(batch, seq_len, d_model)` and adds
     deterministic sinusoidal vectors to each position before dropout.
