@@ -68,7 +68,7 @@ class HMEDataLoaderFactory:
 
         self.collate_fn = HMECollateFunction(self.vocab)
 
-    def train(self, transform: Transformation) -> DataLoader:
+    def train(self, transform: Transformation = None) -> DataLoader:
         """Creates dataloader for `train` split
 
         Parameters
@@ -94,7 +94,7 @@ class HMEDataLoaderFactory:
             collate_fn=self.collate_fn,
         )
 
-    def valid(self, transform: Transformation) -> DataLoader:
+    def valid(self, transform: Transformation = None) -> DataLoader:
         """Creates dataloader for `valid` split
 
         Parameters
@@ -120,7 +120,7 @@ class HMEDataLoaderFactory:
             collate_fn=self.collate_fn,
         )
 
-    def test(self, transform: Transformation) -> DataLoader:
+    def test(self, transform: Transformation = None) -> DataLoader:
         """Creates dataloader for `test` split
 
         Parameters
