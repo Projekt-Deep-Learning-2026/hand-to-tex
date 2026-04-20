@@ -8,6 +8,9 @@ from hand_to_tex.datasets.collate import HMECollateFunction
 from hand_to_tex.datasets.dataset import HMEDatasetPreprocessed, HMEDatasetRaw
 from hand_to_tex.utils import LatexVocab
 
+Transformation = Callable[[Tensor], Tensor] | None
+HMEDataset = HMEDatasetPreprocessed | HMEDatasetRaw
+
 
 class HMEDataLoaderFactory:
     """Fabric class for initialization of HME dataset dataloaders
@@ -37,18 +40,22 @@ class HMEDataLoaderFactory:
 
         Parameters
         ----------
-        root : Path | str
+        root
             Path to the directory that contains splits like train, valid, test
-        processed : bool
+        processed
             Indicates whether data in `root` is `.inkml` (not processed) `.pt` (processed)
-        vocab : LatexVocab | None
+        vocab
             Latex vocabulary that will be used, if None then `LatexVocab.default()` will be used
-        batch_size : int
+        batch_size
             batch_size passed to torch `DataLoader`
-        num_workers : int
+        num_workers
             num_workers passed to torch `DataLoader`
-        pin_memory : bool
+        pin_memory
             pin_memory passed to torch `DataLoader`
+        min_len
+            Minimal length of sequence (tracepoints), only works for preprocessed datasets
+        max_len
+            Maximal length of sequence (tracepoints), only works for preprocessed datasets
         """
         self.root = Path(root)
         self.processed = processed
@@ -61,12 +68,12 @@ class HMEDataLoaderFactory:
 
         self.collate_fn = HMECollateFunction(self.vocab)
 
-    def train(self, transform: Callable[[Tensor], Tensor] | None = None) -> DataLoader:
+    def train(self, transform: Transformation) -> DataLoader:
         """Creates dataloader for `train` split
 
         Parameters
         ----------
-        transform : (Callable: `Tensor` -> `Tensor`) | None
+        transform
             Transform method passed to HMEDataset
 
         Returns
@@ -75,22 +82,7 @@ class HMEDataLoaderFactory:
             DataLoader for training data with shuffling and drop_last=True
 
         """
-        if self.processed:
-            dataset = HMEDatasetPreprocessed(
-                root=self.root,
-                split="train",
-                vocab=self.vocab,
-                transform=transform,
-                min_len=self.min_len,
-                max_len=self.max_len,
-            )
-        else:
-            dataset = HMEDatasetRaw(
-                root=self.root,
-                split="train",
-                vocab=self.vocab,
-                transform=transform,
-            )
+        dataset = self._get_dataset(split="train", transform=transform)
 
         return DataLoader(
             dataset=dataset,
@@ -102,12 +94,12 @@ class HMEDataLoaderFactory:
             collate_fn=self.collate_fn,
         )
 
-    def valid(self, transform: Callable[[Tensor], Tensor] | None = None) -> DataLoader:
+    def valid(self, transform: Transformation) -> DataLoader:
         """Creates dataloader for `valid` split
 
         Parameters
         ----------
-        transform : (Callable: `Tensor` -> `Tensor`) | None
+        transform
             Transform method passed to HMEDatasetRaw
 
         Returns
@@ -116,22 +108,7 @@ class HMEDataLoaderFactory:
             DataLoader for validation data without shuffling and drop_last=False
 
         """
-        if self.processed:
-            dataset = HMEDatasetPreprocessed(
-                root=self.root,
-                split="valid",
-                vocab=self.vocab,
-                transform=transform,
-                min_len=self.min_len,
-                max_len=self.max_len,
-            )
-        else:
-            dataset = HMEDatasetRaw(
-                root=self.root,
-                split="valid",
-                vocab=self.vocab,
-                transform=transform,
-            )
+        dataset = self._get_dataset(split="valid", transform=transform)
 
         return DataLoader(
             dataset=dataset,
@@ -143,12 +120,12 @@ class HMEDataLoaderFactory:
             collate_fn=self.collate_fn,
         )
 
-    def test(self, transform: Callable[[Tensor], Tensor] | None = None) -> DataLoader:
+    def test(self, transform: Transformation) -> DataLoader:
         """Creates dataloader for `test` split
 
         Parameters
         ----------
-        transform : (Callable: `Tensor` -> `Tensor`) | None
+        transform
             Transform method passed to HMEDatasetRaw
 
         Returns
@@ -156,22 +133,7 @@ class HMEDataLoaderFactory:
         DataLoader
             DataLoader for test data without shuffling and drop_last=False
         """
-        if self.processed:
-            dataset = HMEDatasetPreprocessed(
-                root=self.root,
-                split="test",
-                vocab=self.vocab,
-                transform=transform,
-                min_len=self.min_len,
-                max_len=self.max_len,
-            )
-        else:
-            dataset = HMEDatasetRaw(
-                root=self.root,
-                split="test",
-                vocab=self.vocab,
-                transform=transform,
-            )
+        dataset = self._get_dataset(split="test", transform=transform)
 
         return DataLoader(
             dataset=dataset,
@@ -186,16 +148,16 @@ class HMEDataLoaderFactory:
     def custom(
         self,
         split: str,
-        transform: Callable[[Tensor], Tensor] | None = None,
+        transform: Transformation = None,
         **kwargs,
     ) -> DataLoader:
         """Creates dataloader for custom split and DataLoader kwargs.
 
         Parameters
         ----------
-        split : str
+        split
             Dataset split name (e.g. `train`, `valid`, `test`)
-        transform : (Callable: `Tensor` -> `Tensor`) | None
+        transform
             Transform method passed to HMEDatasetRaw
         **kwargs
             Additional keyword arguments forwarded to `torch.utils.data.DataLoader`
@@ -206,22 +168,7 @@ class HMEDataLoaderFactory:
             Configured DataLoader for the specified split
         """
         split_name = split.lower()
-        if self.processed:
-            dataset = HMEDatasetPreprocessed(
-                root=self.root,
-                split=split_name,
-                vocab=self.vocab,
-                transform=transform,
-                min_len=self.min_len,
-                max_len=self.max_len,
-            )
-        else:
-            dataset = HMEDatasetRaw(
-                root=self.root,
-                split=split_name,
-                vocab=self.vocab,
-                transform=transform,
-            )
+        dataset = self._get_dataset(split=split_name, transform=transform)
 
         defaults = {
             "dataset": dataset,
@@ -235,3 +182,22 @@ class HMEDataLoaderFactory:
         defaults.update(kwargs)
 
         return DataLoader(**defaults)
+
+    def _get_dataset(self, split: str, transform: Transformation) -> HMEDataset:
+
+        kwargs = {
+            "root": self.root,
+            "split": split,
+            "vocab": self.vocab,
+            "transform": transform,
+        }
+        if self.processed:
+            ds = HMEDatasetPreprocessed(
+                **kwargs,
+                min_len=self.min_len,
+                max_len=self.max_len,
+            )
+        else:
+            ds = HMEDatasetRaw(**kwargs)
+
+        return ds
