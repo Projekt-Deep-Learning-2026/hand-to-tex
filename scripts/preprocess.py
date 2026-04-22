@@ -40,13 +40,13 @@ def _process_single_file(
     FILTERED = ("filtered", None, ID)
     try:
         ink = InkData.load(pth)
-        fts = HMEDatasetRaw.extract_features(ink)
+        fts = HMEDatasetRaw.extract_features(ink).to(dtype=torch.float16)
 
         if fts.size(0) == 0:
             return EMPTY
 
         tokens = vocab.encode_expr(ink.tex_norm)
-        tokens = torch.tensor(tokens, dtype=torch.long)
+        tokens = torch.tensor(tokens, dtype=torch.int16)
 
         if (
             (max_tracepoints is not None and fts.size(0) > max_tracepoints)

@@ -8,7 +8,7 @@ from torch import Tensor
 from torch.utils.data.dataset import Dataset
 
 from hand_to_tex.datasets.ink_data import InkData
-from hand_to_tex.utils import LatexVocab
+from hand_to_tex.utils import LatexVocab, logger
 
 
 class _HMEDatasetBase(Dataset, ABC):
@@ -28,13 +28,13 @@ class _HMEDatasetBase(Dataset, ABC):
 
         Parameters
         ----------
-        root : Path | str
+        root
             Directory of all dataset files
-        split : str
+        split
             Name of the split, the path to .inkml files dir. will be root/split
-        vocab : LatexVocab | None
+        vocab
             Vocabulary for tokenization, default `LatexVocab.default()`
-        transform : (`Tensor` -> `Tensor`) | None
+        transform
             Optional transformation applied to features before returning
         """
         self.data_path = Path(root, split)
@@ -256,10 +256,42 @@ class HMEDatasetPreprocessed(_HMEDatasetBase):
         split: str,
         vocab: LatexVocab | None = None,
         transform: Callable[[Tensor], Tensor] | None = None,
+        min_len: int | None = None,
+        max_len: int | None = None,
     ):
         super().__init__(root=root, split=split, vocab=vocab, transform=transform)
         data_path = Path(root, split + ".pt")
-        self.data = torch.load(data_path)
+
+        logger.info(f"Loading preprocessed HMEDataset from: {data_path}")
+        raw_data: list[tuple[torch.Tensor, torch.Tensor]] = torch.load(data_path, weights_only=True)
+
+        logger.info(f"Filtering data for split: {split}")
+        self.data = []
+        short, long, has_inf, has_nan = 0, 0, 0, 0
+        for fts, ts in raw_data:
+            ft_len = fts.size(0)
+
+            if min_len is not None and ft_len < min_len:
+                short += 1
+
+            elif max_len is not None and ft_len > max_len:
+                long += 1
+
+            elif torch.isinf(fts).any():
+                has_inf += 1
+
+            elif torch.isnan(fts).any():
+                has_nan += 1
+
+            else:
+                self.data.append((fts, ts))
+
+        kept, filtered = len(self.data), (short + long + has_inf + has_nan)
+
+        if filtered:
+            logger.warning(
+                f"For min={min_len}, max={max_len} split={split} got short={short} | long={long} | has_inf={has_inf} | has_nan={has_nan} | total={kept}/{kept + filtered}"
+            )
 
     def __len__(self) -> int:
         return len(self.data)

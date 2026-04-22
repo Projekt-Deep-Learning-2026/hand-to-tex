@@ -19,6 +19,8 @@ class HMELightningDataModule(pl.LightningDataModule):
         batch_size: int = 32,
         num_workers: int = 4,
         pin_memory: bool = True,
+        min_len: int | None = None,
+        max_len: int | None = None,
         **kwargs: Any,
     ):
         super().__init__()
@@ -32,6 +34,9 @@ class HMELightningDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
+
+        self.min_len = min_len
+        self.max_len = max_len
 
         self.data_kwargs = kwargs
 
@@ -51,6 +56,8 @@ class HMELightningDataModule(pl.LightningDataModule):
                 batch_size=self.batch_size,
                 num_workers=self.num_workers,
                 pin_memory=self.pin_memory,
+                min_len=self.min_len,
+                max_len=self.max_len,
             )
 
         match stage:

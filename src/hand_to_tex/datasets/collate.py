@@ -42,7 +42,7 @@ class HMECollateFunction:
         ft_lengths = torch.tensor([f.size(0) for f in features], dtype=torch.long)
         ts_lengths = torch.tensor([t.size(0) for t in tokens], dtype=torch.long)
 
-        padded_ft = pad_sequence(features, True, 0.0)
-        padded_ts = pad_sequence(tokens, True, self.pad_idx)
+        padded_ft = pad_sequence(features, True, 0.0).to(torch.float32)
+        padded_ts = pad_sequence(tokens, True, self.pad_idx).to(torch.long)
 
         return padded_ft, ft_lengths, padded_ts, ts_lengths

@@ -22,7 +22,14 @@ class TestHMEDataLoaderFactory:
     def test_train_uses_shuffle_and_drop_last(self, tmp_path: Path, sample_inkml: Path, vocab):
         root = _prepare_splits_with_sample(tmp_path, sample_inkml)
         factory = HMEDataLoaderFactory(
-            root=root, processed=False, vocab=vocab, batch_size=1, num_workers=0, pin_memory=False
+            root=root,
+            processed=False,
+            vocab=vocab,
+            batch_size=1,
+            num_workers=0,
+            pin_memory=False,
+            min_len=None,
+            max_len=None,
         )
 
         train_loader = factory.train()
@@ -33,7 +40,14 @@ class TestHMEDataLoaderFactory:
     def test_valid_and_test_use_sequential_sampler(self, tmp_path: Path, sample_inkml: Path, vocab):
         root = _prepare_splits_with_sample(tmp_path, sample_inkml)
         factory = HMEDataLoaderFactory(
-            root=root, vocab=vocab, processed=False, batch_size=1, num_workers=0, pin_memory=False
+            root=root,
+            vocab=vocab,
+            processed=False,
+            batch_size=1,
+            num_workers=0,
+            pin_memory=False,
+            min_len=None,
+            max_len=None,
         )
 
         valid_loader = factory.valid()
@@ -47,7 +61,14 @@ class TestHMEDataLoaderFactory:
     def test_custom_overrides_defaults(self, tmp_path: Path, sample_inkml: Path, vocab):
         root = _prepare_splits_with_sample(tmp_path, sample_inkml)
         factory = HMEDataLoaderFactory(
-            root=root, vocab=vocab, processed=False, batch_size=4, num_workers=0, pin_memory=False
+            root=root,
+            vocab=vocab,
+            processed=False,
+            batch_size=4,
+            num_workers=0,
+            pin_memory=False,
+            min_len=None,
+            max_len=None,
         )
 
         loader = factory.custom("valid", batch_size=2, shuffle=True, drop_last=True)
@@ -59,7 +80,14 @@ class TestHMEDataLoaderFactory:
     def test_iteration_returns_collated_batch(self, tmp_path: Path, sample_inkml: Path, vocab):
         root = _prepare_splits_with_sample(tmp_path, sample_inkml)
         factory = HMEDataLoaderFactory(
-            root=root, vocab=vocab, processed=False, batch_size=1, num_workers=0, pin_memory=False
+            root=root,
+            vocab=vocab,
+            processed=False,
+            batch_size=1,
+            num_workers=0,
+            pin_memory=False,
+            min_len=None,
+            max_len=None,
         )
 
         loader = factory.valid()
@@ -75,7 +103,14 @@ class TestHMEDataLoaderFactory:
     def test_transform_applied_in_loader(self, tmp_path: Path, sample_inkml: Path, vocab):
         root = _prepare_splits_with_sample(tmp_path, sample_inkml)
         factory = HMEDataLoaderFactory(
-            root=root, vocab=vocab, processed=False, batch_size=1, num_workers=0, pin_memory=False
+            root=root,
+            vocab=vocab,
+            processed=False,
+            batch_size=1,
+            num_workers=0,
+            pin_memory=False,
+            min_len=None,
+            max_len=None,
         )
 
         def negate(x: torch.Tensor) -> torch.Tensor:
