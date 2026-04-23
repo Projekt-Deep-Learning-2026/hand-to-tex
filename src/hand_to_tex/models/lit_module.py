@@ -8,6 +8,7 @@ import torch.optim as optim
 import wandb
 from lightning.pytorch.loggers import WandbLogger
 from torch import Tensor
+from torch.nn.modules.utils import consume_prefix_in_state_dict_if_present
 from torchmetrics import MeanMetric, MetricCollection
 from torchmetrics.text import CharErrorRate, WordErrorRate
 
@@ -368,7 +369,7 @@ class HMELightningModule(pl.LightningModule):
                 self.logger.experiment.log({"test_prediction_table": table})
         self.test_samples = []
 
-    def on_load_checkpoint(self, checkpoint: dict) -> None:
+    def on_load_checkpoint(self, checkpoint: dict):
         """Clean checkpoint keys before Lightning restores the state.
 
         Parameters
@@ -378,13 +379,24 @@ class HMELightningModule(pl.LightningModule):
         """
 
         state_dict = checkpoint.get("state_dict", {})
-        cleaned_state_dict = {}
+        consume_prefix_in_state_dict_if_present(state_dict, "_orig_mod.")
 
-        for key, value in state_dict.items():
-            clean_key = key.replace("._orig_mod.", ".")
-            cleaned_state_dict[clean_key] = value
+        checkpoint["state_dict"] = state_dict
 
-        checkpoint["state_dict"] = cleaned_state_dict
+    def on_save_checkpoint(self, checkpoint: dict):
+        """Before saving the checkpoint, clean the state dict from compilation
+        changes such as _orig_mod in weights' names
+
+        Parameters
+        ----------
+        checkpoint:
+            Checkpoint dictionary passed by Lightning.
+        """
+
+        state_dict = checkpoint.get("state_dict", {})
+        consume_prefix_in_state_dict_if_present(state_dict, "_orig_mod.")
+
+        checkpoint["state_dict"] = state_dict
 
     def configure_optimizers(self):
         """Create the optimizer and learning-rate scheduler.
@@ -448,6 +460,13 @@ class HMELightningModule(pl.LightningModule):
         }
 
     def _to_expr(self, tokens: Tensor) -> str:
+        """Turn a tensor of tokens into string of TeX tokens separated by space
+
+        Returns
+        -------
+
+        String consisted of space-separated TeX tokens
+        """
         token_ids = tokens.tolist()
         expr = []
         for t_id in token_ids:
@@ -480,8 +499,8 @@ class HMELightningModule(pl.LightningModule):
             if (state_dict := pretrained_model.get("state_dict")) is None:
                 logger.warning(f"Couldn't find `state_dict` in {pretrained_model_path}")
             else:
-                state_clean = {k.replace("._orig_mod", ""): v for k, v in state_dict.items()}
+                consume_prefix_in_state_dict_if_present(state_dict=state_dict, prefix="._orig_mod")
 
-                self.load_state_dict(state_dict=state_clean, strict=strict)
+                self.load_state_dict(state_dict=state_dict, strict=strict)
         except Exception as e:
             raise e
