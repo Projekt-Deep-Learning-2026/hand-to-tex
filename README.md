@@ -49,7 +49,7 @@ You can see how your model performs on .inkml files by running `htt-demo`
 # Provide a file or a directory with .inkmls to visualize sample vs model output
 htt-demo --ckpt data/models/last.ckpt --input tests/fixtures/sample.inkml
 
-# Play with interactive window to see how the model recognize your handwriting
+# Play with interactive window to see how the model recognizes your handwriting
 htt-demo --ckpt data/models/last.ckpt --interactive
 ```
 
