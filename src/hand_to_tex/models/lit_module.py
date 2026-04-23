@@ -236,8 +236,8 @@ class HMELightningModule(pl.LightningModule):
         padded_ft, ft_lengths, _, _ = batch
         generated_ts = self.generate(padded_ft, ft_lengths)
 
-        predicted_txt = [self._to_expr(ts) for ts in generated_ts]
-        expected_txt = [self._to_expr(ts) for ts in expected]
+        predicted_txt = [self.vocab.tensor_to_str(ts) for ts in generated_ts]
+        expected_txt = [self.vocab.tensor_to_str(ts) for ts in expected]
 
         metrics.update(predicted_txt, expected_txt)
 
@@ -458,27 +458,6 @@ class HMELightningModule(pl.LightningModule):
                 "interval": "step",
             },
         }
-
-    def _to_expr(self, tokens: Tensor) -> str:
-        """Turn a tensor of tokens into string of TeX tokens separated by space
-
-        Returns
-        -------
-
-        String consisted of space-separated TeX tokens
-        """
-        token_ids = tokens.tolist()
-        expr = []
-        for t_id in token_ids:
-            match t_id:
-                case self.vocab.EOS:
-                    break
-                case self.vocab.PAD | self.vocab.SOS | self.vocab.UNK:
-                    continue
-                case _:
-                    expr.append(self.vocab.decode(t_id))
-
-        return " ".join(expr)
 
     def _load_pretrained_model(self, pretrained_model_path: str, strict: bool = True):
         """Load pretrained weights from a checkpoint file.

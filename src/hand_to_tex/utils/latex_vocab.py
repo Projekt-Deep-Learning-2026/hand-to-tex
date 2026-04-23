@@ -5,6 +5,8 @@ import json
 import re
 from pathlib import Path
 
+from torch import Tensor
+
 
 @dataclasses.dataclass(frozen=True)
 class LatexVocab:
@@ -202,6 +204,34 @@ class LatexVocab:
             List of token strings. Unknown IDs are decoded as `<UNK>`.
         """
         return [self.decode(t_id) for t_id in token_ids]
+
+    def tensor_to_str(self, data: Tensor, separator: str = " ") -> str:
+        """Turn a tensor of tokens into string of TeX tokens separated by `separator`
+
+        Parameters
+        ----------
+
+        data:
+            Tensor of shape (1, `N`) of integers that codes the sequence
+        separator:
+            Separates consecutive tokens
+        Returns
+        -------
+
+        String consisted of `separator`-separated TeX tokens (omits all special tokens: EOS, SOS, PAD, UNK)
+        """
+        token_ids = data.tolist()
+        expr = []
+        for t_id in token_ids:
+            match t_id:
+                case self.EOS:
+                    break
+                case self.PAD | self.SOS | self.UNK:
+                    continue
+                case _:
+                    expr.append(self.decode(t_id))
+
+        return separator.join(expr)
 
     def __len__(self) -> int:
         return len(self._encode)
