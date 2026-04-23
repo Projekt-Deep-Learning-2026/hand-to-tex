@@ -28,21 +28,33 @@ uv sync --dev
 
 If you activate `.venv`, you can run project commands directly without prefixing them with `uv run`.
 
+**macOS / Linux:**
 ```bash
-# Git Bash (Windows)
+source .venv/bin/activate
+```
+**Windows**
+```bash
+# Git Bash 
 source .venv/Scripts/activate
 
-# PowerShell (Windows)
+# PowerShell 
 .venv\Scripts\Activate.ps1
 ```
 
-### 4. Run a prediction immediately (no training)
+### 4. Run a prediction immediately (from checkpoint)
 
-This uses the checkpoint already included in the repository:
+You can see how your model performs on .inkml files by running `htt-demo`
 
 ```bash
+# Provide a file or a directory with .inkmls to visualize sample vs model output
 htt-demo --ckpt data/models/last.ckpt --input tests/fixtures/sample.inkml
+
+# Play with interactive window to see how the model recognize your handwriting
+htt-demo --ckpt data/models/last.ckpt --interactive
 ```
+
+
+
 
 You should see predicted TeX in logs and a rendered plot window.
 
