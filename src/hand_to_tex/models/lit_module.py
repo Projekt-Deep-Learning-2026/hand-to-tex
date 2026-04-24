@@ -8,7 +8,6 @@ import torch.optim as optim
 import wandb
 from lightning.pytorch.loggers import WandbLogger
 from torch import Tensor
-from torch.nn.modules.utils import consume_prefix_in_state_dict_if_present
 from torchmetrics import MeanMetric, MetricCollection
 from torchmetrics.text import CharErrorRate, WordErrorRate
 
@@ -378,10 +377,10 @@ class HMELightningModule(pl.LightningModule):
             Checkpoint dictionary passed by Lightning.
         """
 
-        state_dict = checkpoint.get("state_dict", {})
-        consume_prefix_in_state_dict_if_present(state_dict, "_orig_mod.")
-
-        checkpoint["state_dict"] = state_dict
+        if (state_dict := checkpoint.get("state_dict")) is None:
+            logger.warning("Couldn't find `state_dict` while loading the checkpoint")
+        else:
+            checkpoint["state_dict"] = HMELightningModule._clean_state_dict(state_dict=state_dict)
 
     def on_save_checkpoint(self, checkpoint: dict):
         """Before saving the checkpoint, clean the state dict from compilation
@@ -393,10 +392,10 @@ class HMELightningModule(pl.LightningModule):
             Checkpoint dictionary passed by Lightning.
         """
 
-        state_dict = checkpoint.get("state_dict", {})
-        consume_prefix_in_state_dict_if_present(state_dict, "_orig_mod.")
-
-        checkpoint["state_dict"] = state_dict
+        if (state_dict := checkpoint.get("state_dict")) is None:
+            logger.warning("Couldn't find `state_dict` while saving the checkpoint")
+        else:
+            checkpoint["state_dict"] = HMELightningModule._clean_state_dict(state_dict=state_dict)
 
     def configure_optimizers(self):
         """Create the optimizer and learning-rate scheduler.
@@ -478,8 +477,22 @@ class HMELightningModule(pl.LightningModule):
             if (state_dict := pretrained_model.get("state_dict")) is None:
                 logger.warning(f"Couldn't find `state_dict` in {pretrained_model_path}")
             else:
-                consume_prefix_in_state_dict_if_present(state_dict=state_dict, prefix="._orig_mod")
-
+                state_dict = HMELightningModule._clean_state_dict(state_dict=state_dict)
                 self.load_state_dict(state_dict=state_dict, strict=strict)
         except Exception as e:
             raise e
+
+    @staticmethod
+    def _clean_state_dict(state_dict: dict) -> dict:
+        """Clean state_dict keys from compilation additions (_orig_mod)
+
+        Parameters
+        ----------
+        state_dict:
+            state dictionary obtained from checkpoint
+
+        Returns
+        -------
+        state_dict with cleaned keys
+        """
+        return {k.replace("._orig_mod.", "."): v for k, v in state_dict.items()}
