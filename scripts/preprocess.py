@@ -10,11 +10,11 @@ import torch
 from tqdm import tqdm
 
 from hand_to_tex.datasets import HMEDatasetRaw, InkData
+from hand_to_tex.types import Sample
 from hand_to_tex.utils import LatexVocab, logger
 
 BATCH_SIZE = 1000
 SPLITS = ["train", "valid", "test"]
-SPLIT_T = Literal["train", "valid", "test"]
 MERGE_SPLIT_SEED = 42
 MERGE_WEIGHTS = {
     "train": 0.8,
@@ -24,15 +24,20 @@ MERGE_WEIGHTS = {
 DATASET_PATH = Path("./data/mathwriting-2024")
 VOCAB_PATH = Path("./data/assets/vocab.json")
 
+type ProcessingStatus = Literal["success", "error", "empty", "filtered"]
+type SplitName = Literal["train", "valid", "test"]
+type SampleID = str
 
+
+# TODO
+# currently the dataset returns Features and Tokens with different precision, so this should be resolved by changing extract_features
+# but this is a job issue #29
 def _process_single_file(
     pth: Path,
     vocab: LatexVocab,
     max_tokens: None | int,
     max_tracepoints: None | int,
-) -> tuple[
-    Literal["success", "error", "empty", "filtered"], tuple[torch.Tensor, torch.Tensor] | None, str
-]:
+) -> tuple[ProcessingStatus, Sample | None, SampleID]:
     """Process single .inkml file, perform validation and return status and pair (features, tokens)"""
     ID = pth.stem
     ERR = ("error", None, ID)
@@ -167,9 +172,7 @@ def preprocess_split(
         logger.info(f"Cleaned {len(temp_files)} temp files succesfully")
 
 
-def merge_into(
-    merge_data: list[tuple[torch.Tensor, torch.Tensor]], out_dir: Path, splits: list[SPLIT_T]
-):
+def merge_into(merge_data: list[Sample], out_dir: Path, splits: list[SplitName]):
     """Shuffle and merge samples into selected output splits by configured weights."""
 
     shuffled = list(merge_data)
@@ -180,7 +183,7 @@ def merge_into(
     total_weight = sum(MERGE_WEIGHTS[spl] for spl in splits)
     normalized_weights = {spl: MERGE_WEIGHTS[spl] / total_weight for spl in splits}
 
-    counts: dict[SPLIT_T, int] = {spl: int(total * normalized_weights[spl]) for spl in splits}
+    counts = {spl: int(total * normalized_weights[spl]) for spl in splits}
     used = sum(counts.values())
     if used < total:
         remainder = total - used
@@ -192,7 +195,7 @@ def merge_into(
         for i in range(remainder):
             counts[ordered[i % len(ordered)]] += 1
 
-    data_to_append: dict[SPLIT_T, list[tuple[torch.Tensor, torch.Tensor]]] = {
+    data_to_append: dict[SplitName, list[Sample]] = {
         "train": [],
         "valid": [],
         "test": [],
