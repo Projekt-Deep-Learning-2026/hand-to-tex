@@ -1,5 +1,7 @@
 """Tests for LatexVocab class."""
 
+import torch
+
 from hand_to_tex.utils import LatexVocab
 
 
@@ -63,3 +65,40 @@ class TestLatexVocabExpr:
         ids = vocab.encode_expr("x+y")
         tokens = vocab.decode_sequence(ids)
         assert tokens == ["<SOS>", "x", "+", "y", "<EOS>"]
+
+
+class TestLatexVocabTensorToStr:
+    """Tests for tensor_to_str method."""
+
+    def test_tensor_to_str_omits_special_tokens(self, vocab: LatexVocab):
+        """SOS, PAD, and UNK tokens are omitted from output."""
+        seq = [
+            vocab.SOS,
+            vocab.encode("x"),
+            vocab.PAD,
+            vocab.encode("+"),
+            vocab.UNK,
+            vocab.encode("y"),
+        ]
+        tensor = torch.tensor(seq)
+        result = vocab.tensor_to_str(tensor)
+        assert result == "x + y"
+
+    def test_tensor_to_str_stops_at_eos(self, vocab: LatexVocab):
+        """Decoding stops completely when EOS is encountered."""
+        seq = [
+            vocab.encode("x"),
+            vocab.EOS,
+            vocab.encode("+"),
+            vocab.encode("y"),
+        ]
+        tensor = torch.tensor(seq)
+        result = vocab.tensor_to_str(tensor)
+        assert result == "x"
+
+    def test_tensor_to_str_custom_separator(self, vocab: LatexVocab):
+        """Custom separator is used to join tokens."""
+        seq = [vocab.encode("x"), vocab.encode("+"), vocab.encode("y")]
+        tensor = torch.tensor(seq)
+        result = vocab.tensor_to_str(tensor, separator="")
+        assert result == "x+y"
