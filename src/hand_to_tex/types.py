@@ -34,11 +34,29 @@ type TensorBool = Tensor
 type Transformation[TensorType: Tensor] = Callable[[TensorType], TensorType]
 """A callable function or object that applies a transformation module to a given tensor."""
 
+# Feature Types
 type Features = TensorF32
-"""2D feature tensor of shape `(N, F)` extracted from traces. `N` points with `F` features."""
+"""2D feature tensor extracted from traces. `N` points with `F` features. Expected shape: `(N, F)`."""
 
+type BatchedFeatures = TensorF32
+"""Feature tensor with a batch dimension and sequence padding. Expected shape: `(B, max_N, F)`."""
+
+type FeatureLengths = TensorLong
+"""1D tensor of true (unpadded) sequence lengths for the features in a batch. Expected shape: `(B,)`."""
+
+# Token Types
 type Tokens = TensorLong
-"""1D tensor of integer token IDs representing a math expression."""
+"""1D tensor of integer token IDs representing a math expression. Expected shape: `(L,)`."""
 
+type BatchedTokens = TensorLong
+"""Token tensor with a batch dimension and sequence padding. Expected shape: `(B, max_L)`."""
+
+type TokenLengths = TensorLong
+"""1D tensor of true (unpadded) sequence lengths for the tokens in a batch. Expected shape: `(B,)`."""
+
+# Batch Types
 type Sample = tuple[Features, Tokens]
 """A single dataset sample, pair `[Features, Tokens]`"""
+
+type Batch = tuple[BatchedFeatures, FeatureLengths, BatchedTokens, TokenLengths]
+"""Single batch type contains `(BatchedFeatures, FeatureLenghts, BatchedTokens, TokenLengths)`"""
