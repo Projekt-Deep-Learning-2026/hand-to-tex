@@ -9,10 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-# Single trace point stored as (x, y, t).
-type TracePoint = tuple[float, float, float]
-# Collection of traces: each trace is a list of points.
-type Traces = list[list[TracePoint]]
+from hand_to_tex.types import Trace, Traces
 
 
 @dataclass(frozen=True)
@@ -114,7 +111,7 @@ class InkData:
             return None
 
     @staticmethod
-    def _load_trace(elem: ElementTree.Element) -> list[TracePoint]:
+    def _load_trace(elem: ElementTree.Element) -> Trace:
         """Parse a `trace` element into a list of `(x, y, t)` points.
 
         Parameters
@@ -130,7 +127,7 @@ class InkData:
 
         if (txt := elem.text) is None:
             return []
-        trace = []
+        trace: Trace = []
         for point in txt.split(","):
             x, y, t = map(float, point.split())
             trace.append((x, y, t))
