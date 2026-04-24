@@ -1,12 +1,11 @@
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import lightning.pytorch as pl
-from torch import Tensor
 from torch.utils.data import DataLoader
 
 from hand_to_tex.datasets.dataloader import HMEDataLoaderFactory
+from hand_to_tex.types import Features, Transformation
 from hand_to_tex.utils import LatexVocab
 
 
@@ -85,10 +84,10 @@ class HMELightningDataModule(pl.LightningDataModule):
             case "predict":
                 pass
 
-    def _get_train_transform(self) -> Callable[[Tensor], Tensor] | None:
+    def _get_train_transform(self) -> Transformation[Features] | None:
         return None
 
-    def _get_eval_transform(self) -> Callable[[Tensor], Tensor] | None:
+    def _get_eval_transform(self) -> Transformation[Features] | None:
         return None
 
     def train_dataloader(self) -> DataLoader:
