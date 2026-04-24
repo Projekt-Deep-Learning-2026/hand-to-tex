@@ -212,7 +212,7 @@ class LatexVocab:
         ----------
 
         data:
-            Tensor of shape (1, `N`) of integers that codes the sequence
+            Tensor of shape (`N`,) of integers that codes the sequence
         separator:
             Separates consecutive tokens
         Returns
