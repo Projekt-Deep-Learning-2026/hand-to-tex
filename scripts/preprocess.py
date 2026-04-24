@@ -24,14 +24,14 @@ MERGE_WEIGHTS = {
 DATASET_PATH = Path("./data/mathwriting-2024")
 VOCAB_PATH = Path("./data/assets/vocab.json")
 
-type ProcessingStatus = Literal["success", "error", "empty", "filtered"]
 type SplitName = Literal["train", "valid", "test"]
+type ProcessingStatus = Literal["success", "error", "empty", "filtered"]
 type SampleID = str
 
 
 # TODO
-# currently the dataset returns Features and Tokens with different precision, so this should be resolved by changing extract_features
-# but this is a job issue #29
+# Currently there is an issue that the extract_features returns tensor with f32 precision
+# and there is need to change that but thats for issue #29
 def _process_single_file(
     pth: Path,
     vocab: LatexVocab,
@@ -172,7 +172,9 @@ def preprocess_split(
         logger.info(f"Cleaned {len(temp_files)} temp files succesfully")
 
 
-def merge_into(merge_data: list[Sample], out_dir: Path, splits: list[SplitName]):
+def merge_into(
+    merge_data: list[tuple[torch.Tensor, torch.Tensor]], out_dir: Path, splits: list[SplitName]
+):
     """Shuffle and merge samples into selected output splits by configured weights."""
 
     shuffled = list(merge_data)
