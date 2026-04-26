@@ -81,9 +81,7 @@ class TestLossComputation:
 
         assert loss_after.item() < loss_before.item()
 
-    def test_pad_position_logits_do_not_affect_loss(
-        self, tiny_lit_module: HMELightningModule
-    ):
+    def test_pad_position_logits_do_not_affect_loss(self, tiny_lit_module: HMELightningModule):
         """Logits at PAD positions must be ignored by the criterion."""
         torch.manual_seed(0)
         vocab = tiny_lit_module.vocab
@@ -92,14 +90,11 @@ class TestLossComputation:
         V = len(vocab)
 
         target_expected = torch.tensor(
-            [[a, eos, a],
-             [a, eos, pad]],
+            [[a, eos, a], [a, eos, pad]],
             dtype=torch.long,
         )
         logits = torch.randn(2, 3, V, requires_grad=False)
-        loss_before = tiny_lit_module.criterion(
-            logits.reshape(-1, V), target_expected.reshape(-1)
-        )
+        loss_before = tiny_lit_module.criterion(logits.reshape(-1, V), target_expected.reshape(-1))
 
         logits_perturbed = logits.clone()
         logits_perturbed[1, 2, :] = torch.randn(V) * 1000

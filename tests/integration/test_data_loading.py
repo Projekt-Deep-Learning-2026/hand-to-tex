@@ -50,9 +50,7 @@ class TestDataLoadingPipelineRaw:
         assert (ft_lengths <= padded_ft.shape[1]).all()
         assert (ts_lengths <= padded_ts.shape[1]).all()
 
-    def test_dataset_collate_compose_consistently(
-        self, tmp_path: Path, sample_inkml: Path, vocab
-    ):
+    def test_dataset_collate_compose_consistently(self, tmp_path: Path, sample_inkml: Path, vocab):
         root = _prepare_inkml_splits(tmp_path, sample_inkml, n_per_split=3)
         ds = HMEDatasetRaw(root=root, split="train", vocab=vocab)
         collate = HMECollateFunction(vocab)
@@ -66,9 +64,7 @@ class TestDataLoadingPipelineRaw:
 
 class TestDataLoadingPipelinePreprocessed:
     def test_preprocessed_dataset_to_batch(self, preprocessed_pt_root: Path, vocab):
-        ds = HMEDatasetPreprocessed(
-            root=preprocessed_pt_root, split="train", vocab=vocab
-        )
+        ds = HMEDatasetPreprocessed(root=preprocessed_pt_root, split="train", vocab=vocab)
         assert len(ds) > 0
 
         factory = HMEDataLoaderFactory(

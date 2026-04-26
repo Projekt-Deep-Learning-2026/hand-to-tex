@@ -119,10 +119,12 @@ class TestPaddingMaskAndLengthMath:
         lengths = torch.tensor([3, 5], dtype=torch.long)
         mask = model._get_padding_mask(lengths, max_len=6)
 
-        expected = torch.tensor([
-            [False, False, False, True, True, True],
-            [False, False, False, False, False, True],
-        ])
+        expected = torch.tensor(
+            [
+                [False, False, False, True, True, True],
+                [False, False, False, False, False, True],
+            ]
+        )
         assert torch.equal(mask, expected)
 
     def test_downsampled_lengths_match_actual_conv_output(self):
@@ -133,9 +135,7 @@ class TestPaddingMaskAndLengthMath:
         x = model.input_proj(x)
         actual_len = x.shape[2]
 
-        predicted = model._calc_downsampled_lengths(
-            torch.tensor([T_src, T_src], dtype=torch.long)
-        )
+        predicted = model._calc_downsampled_lengths(torch.tensor([T_src, T_src], dtype=torch.long))
         assert int(predicted[0].item()) == actual_len
         assert int(predicted[1].item()) == actual_len
 
@@ -162,7 +162,6 @@ class TestBackwardPass:
         loss.backward()
 
         missing = [
-            name for name, p in model.named_parameters()
-            if p.requires_grad and p.grad is None
+            name for name, p in model.named_parameters() if p.requires_grad and p.grad is None
         ]
         assert missing == [], f"Parameters with no gradient: {missing}"

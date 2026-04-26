@@ -40,12 +40,18 @@ class TestHMEDatasetPreprocessed:
             assert ds[i][0].shape[0] <= 24
 
     def test_inf_and_nan_samples_are_filtered(self, tmp_path: Path, vocab):
-        good = (torch.randn(10, 10, dtype=torch.float32),
-                torch.tensor([vocab.SOS, vocab.EOS], dtype=torch.long))
-        nan_sample = (torch.full((10, 10), float("nan"), dtype=torch.float32),
-                      torch.tensor([vocab.SOS, vocab.EOS], dtype=torch.long))
-        inf_sample = (torch.full((10, 10), float("inf"), dtype=torch.float32),
-                      torch.tensor([vocab.SOS, vocab.EOS], dtype=torch.long))
+        good = (
+            torch.randn(10, 10, dtype=torch.float32),
+            torch.tensor([vocab.SOS, vocab.EOS], dtype=torch.long),
+        )
+        nan_sample = (
+            torch.full((10, 10), float("nan"), dtype=torch.float32),
+            torch.tensor([vocab.SOS, vocab.EOS], dtype=torch.long),
+        )
+        inf_sample = (
+            torch.full((10, 10), float("inf"), dtype=torch.float32),
+            torch.tensor([vocab.SOS, vocab.EOS], dtype=torch.long),
+        )
 
         path = tmp_path / "train.pt"
         torch.save([good, nan_sample, inf_sample], path)
