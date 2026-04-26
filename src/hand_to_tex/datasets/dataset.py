@@ -1,13 +1,12 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from pathlib import Path
 from typing import Final
 
 import torch
-from torch import Tensor
 from torch.utils.data.dataset import Dataset
 
 from hand_to_tex.datasets.ink_data import InkData
+from hand_to_tex.types import Features, Sample, TensorF32, Transformation
 from hand_to_tex.utils import LatexVocab, logger
 
 
@@ -22,7 +21,7 @@ class _HMEDatasetBase(Dataset, ABC):
         root: Path | str,
         split: str,
         vocab: LatexVocab | None = None,
-        transform: Callable[[Tensor], Tensor] | None = None,
+        transform: Transformation[Features] | None = None,
     ):
         """Create HME dataset object
 
@@ -48,11 +47,11 @@ class _HMEDatasetBase(Dataset, ABC):
         pass
 
     @abstractmethod
-    def __getitem__(self, _idx: int):
+    def __getitem__(self, _idx: int) -> Sample:
         pass
 
     @staticmethod
-    def extract_features(ink: InkData) -> Tensor:
+    def extract_features(ink: InkData) -> Features:
         """Extracts features of an InkData object
 
         Returns
@@ -109,7 +108,7 @@ class _HMEDatasetBase(Dataset, ABC):
         return feats
 
     @staticmethod
-    def _normalise_data(xyt: Tensor) -> Tensor:
+    def _normalise_data(xyt: TensorF32) -> TensorF32:
         """Perform normalization on `(x, y, t)` points tensor.
         Normalization uses uniform scaling to preserve aspect ratio,
         and shifts time so that `t := t - t0`.
@@ -135,7 +134,7 @@ class _HMEDatasetBase(Dataset, ABC):
         return torch.cat([xy_norm, t_norm], dim=1)
 
     @staticmethod
-    def _trace_deltas(xyt: Tensor) -> Tensor:
+    def _trace_deltas(xyt: TensorF32) -> TensorF32:
         """Compute `(dx, dy, dt)` for a single normalized trace.
 
         The first point in every trace has zero deltas by definition.
@@ -146,7 +145,7 @@ class _HMEDatasetBase(Dataset, ABC):
         return deltas
 
     @staticmethod
-    def _trace_dynamics(d_xyt: Tensor) -> Tensor:
+    def _trace_dynamics(d_xyt: TensorF32) -> TensorF32:
         """Extract dynamic handwriting features from one trace deltas.
 
         Parameters
@@ -223,7 +222,7 @@ class HMEDatasetRaw(_HMEDatasetBase):
         root: Path | str,
         split: str,
         vocab: LatexVocab | None = None,
-        transform: Callable[[Tensor], Tensor] | None = None,
+        transform: Transformation[Features] | None = None,
     ):
         super().__init__(root=root, split=split, vocab=vocab, transform=transform)
         self.data_path = Path(root, split)
@@ -235,7 +234,7 @@ class HMEDatasetRaw(_HMEDatasetBase):
     def __repr__(self) -> str:
         return f"HMEDataset(root={self.root!r}, split={self.split}, n_samples={len(self)})"
 
-    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor]:
+    def __getitem__(self, idx: int) -> Sample:
         ink = InkData.load(self.filenames[idx])
         features = _HMEDatasetBase.extract_features(ink)
         truth = ink.tex_norm
@@ -255,7 +254,7 @@ class HMEDatasetPreprocessed(_HMEDatasetBase):
         root: Path | str,
         split: str,
         vocab: LatexVocab | None = None,
-        transform: Callable[[Tensor], Tensor] | None = None,
+        transform: Transformation[Features] | None = None,
         min_len: int | None = None,
         max_len: int | None = None,
     ):
@@ -263,10 +262,10 @@ class HMEDatasetPreprocessed(_HMEDatasetBase):
         data_path = Path(root, split + ".pt")
 
         logger.info(f"Loading preprocessed HMEDataset from: {data_path}")
-        raw_data: list[tuple[torch.Tensor, torch.Tensor]] = torch.load(data_path, weights_only=True)
+        raw_data: list[Sample] = torch.load(data_path, weights_only=True)
 
         logger.info(f"Filtering data for split: {split}")
-        self.data = []
+        self.data: list[Sample] = []
         short, long, has_inf, has_nan = 0, 0, 0, 0
         for fts, ts in raw_data:
             ft_len = fts.size(0)
@@ -296,5 +295,5 @@ class HMEDatasetPreprocessed(_HMEDatasetBase):
     def __len__(self) -> int:
         return len(self.data)
 
-    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor]:
+    def __getitem__(self, idx: int) -> Sample:
         return self.data[idx]

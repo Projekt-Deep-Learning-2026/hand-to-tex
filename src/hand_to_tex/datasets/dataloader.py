@@ -1,14 +1,12 @@
-from collections.abc import Callable
 from pathlib import Path
 
-from torch import Tensor
 from torch.utils.data.dataloader import DataLoader
 
 from hand_to_tex.datasets.collate import HMECollateFunction
 from hand_to_tex.datasets.dataset import HMEDatasetPreprocessed, HMEDatasetRaw
+from hand_to_tex.types import Features, Transformation
 from hand_to_tex.utils import LatexVocab
 
-Transformation = Callable[[Tensor], Tensor] | None
 HMEDataset = HMEDatasetPreprocessed | HMEDatasetRaw
 
 
@@ -68,7 +66,7 @@ class HMEDataLoaderFactory:
 
         self.collate_fn = HMECollateFunction(self.vocab)
 
-    def train(self, transform: Transformation = None) -> DataLoader:
+    def train(self, transform: Transformation[Features] | None = None) -> DataLoader:
         """Creates dataloader for `train` split
 
         Parameters
@@ -94,7 +92,7 @@ class HMEDataLoaderFactory:
             collate_fn=self.collate_fn,
         )
 
-    def valid(self, transform: Transformation = None) -> DataLoader:
+    def valid(self, transform: Transformation[Features] | None = None) -> DataLoader:
         """Creates dataloader for `valid` split
 
         Parameters
@@ -120,7 +118,7 @@ class HMEDataLoaderFactory:
             collate_fn=self.collate_fn,
         )
 
-    def test(self, transform: Transformation = None) -> DataLoader:
+    def test(self, transform: Transformation[Features] | None = None) -> DataLoader:
         """Creates dataloader for `test` split
 
         Parameters
@@ -148,7 +146,7 @@ class HMEDataLoaderFactory:
     def custom(
         self,
         split: str,
-        transform: Transformation = None,
+        transform: Transformation[Features] | None = None,
         **kwargs,
     ) -> DataLoader:
         """Creates dataloader for custom split and DataLoader kwargs.
@@ -183,7 +181,7 @@ class HMEDataLoaderFactory:
 
         return DataLoader(**defaults)
 
-    def _get_dataset(self, split: str, transform: Transformation) -> HMEDataset:
+    def _get_dataset(self, split: str, transform: Transformation[Features] | None) -> HMEDataset:
 
         kwargs = {
             "root": self.root,
