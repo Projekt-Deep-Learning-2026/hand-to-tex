@@ -29,6 +29,9 @@ uv sync --dev
 If you activate `.venv`, you can run project commands directly without prefixing them with `uv run`.
 
 ```bash
+# MacOS/Linux
+source .venv/bin/activate
+
 # Git Bash (Windows)
 source .venv/Scripts/activate
 
