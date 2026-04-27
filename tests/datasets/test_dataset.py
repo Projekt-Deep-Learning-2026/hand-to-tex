@@ -36,7 +36,7 @@ class TestHMEDataset:
         features, tokens = dataset[0]
 
         assert features.ndim == 2
-        assert features.shape[1] == 10
+        assert features.shape[1] == 12
         assert features.dtype == torch.float32
         assert tokens.dtype == torch.long
         assert tokens.numel() > 0
@@ -68,7 +68,7 @@ class TestExtractFeatures:
 
         features = HMEDatasetRaw.extract_features(ink)
 
-        assert features.shape == (0, 10)
+        assert features.shape == (0, 12)
         assert features.dtype == torch.float32
 
     def test_single_point_trace_has_zero_deltas_and_dynamics(self):
@@ -81,7 +81,7 @@ class TestExtractFeatures:
         )
 
         features = HMEDatasetRaw.extract_features(ink)
-        assert features.shape == (1, 10)
+        assert features.shape == (1, 12)
         assert torch.equal(features[0, 3:9], torch.zeros(6))
         assert features[0, 9] == 1.0
 
@@ -99,7 +99,7 @@ class TestExtractFeatures:
 
         features = HMEDatasetRaw.extract_features(ink)
 
-        assert features.shape == (5, 10)
+        assert features.shape == (5, 12)
         is_stroke_start = features[:, 9]
         expected = torch.tensor([1.0, 0.0, 1.0, 0.0, 0.0])
         assert torch.equal(is_stroke_start, expected)

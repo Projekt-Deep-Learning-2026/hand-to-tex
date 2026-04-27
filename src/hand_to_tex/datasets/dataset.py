@@ -14,7 +14,7 @@ class _HMEDatasetBase(Dataset, ABC):
     """Base class for Handwritten Math Expressions dataset"""
 
     EPS: Final[float] = 1e-6
-    FEATURES: Final[int] = 10
+    FEATURES: Final[int] = 12
 
     def __init__(
         self,
@@ -56,7 +56,7 @@ class _HMEDatasetBase(Dataset, ABC):
 
         Returns
         -------
-        torch.Tensor of shape `(N, 10)` with features:
+        torch.Tensor of shape `(N, 12)` with features:
             - x_norm, y_norm
                 Normalised coordinates of a trace point
             - t_rel
@@ -71,9 +71,10 @@ class _HMEDatasetBase(Dataset, ABC):
                 Tan-acceleration `dspeed / dt`
             - is_stroke_start
                 Binary indicators of stroke boundaries
-        """
+            - y_center_rel, y_span_rel
+                Vertical trace bounding-box features relative to expression bbox"""
         if ink.traces == []:
-            return torch.zeros((0, 10), dtype=torch.float32)
+            return torch.zeros((0, _HMEDatasetBase.FEATURES), dtype=torch.float32)
 
         traces = [torch.as_tensor(t, dtype=torch.float32) for t in ink.traces if len(t) > 0]
         trace_lengths = [trace.shape[0] for trace in traces]
@@ -82,16 +83,25 @@ class _HMEDatasetBase(Dataset, ABC):
         all_points = _HMEDatasetBase._normalise_data(all_points)
         norm_traces = all_points.split(trace_lengths)
 
+        expr_y_min = all_points[:, 1].min()
+        expr_y_max = all_points[:, 1].max()
+        expr_y_span = (expr_y_max - expr_y_min) + _HMEDatasetBase.EPS
+
         features_per_trace = []
         for trace in norm_traces:
             d_xyt = _HMEDatasetBase._trace_deltas(trace)
             dynamics = _HMEDatasetBase._trace_dynamics(d_xyt)
+            trace_bbox = _HMEDatasetBase._trace_bbox_features(
+                trace=trace,
+                expr_y_min=expr_y_min,
+                expr_y_span=expr_y_span,
+            )
 
             is_stroke_start = torch.zeros(trace.shape[0], dtype=torch.float32, device=trace.device)
             is_stroke_start[0] = 1.0
 
             features_per_trace.append(
-                torch.cat([trace, d_xyt, dynamics, is_stroke_start.unsqueeze(1)], dim=1)
+                torch.cat([trace, d_xyt, dynamics, is_stroke_start.unsqueeze(1), trace_bbox], dim=1)
             )
 
         feats = torch.cat(features_per_trace, dim=0)
@@ -104,6 +114,8 @@ class _HMEDatasetBase(Dataset, ABC):
 
             feats[:, col] = (feats[:, col] - mean) / std
             feats[:, col] = torch.clamp(feats[:, col], min=-5.0, max=5.0)
+
+        feats = torch.nan_to_num(feats, nan=0.0, posinf=5.0, neginf=-5.0)
 
         return feats
 
@@ -212,6 +224,39 @@ class _HMEDatasetBase(Dataset, ABC):
             ],
             dim=1,
         )
+
+    @staticmethod
+    def _trace_bbox_features(
+        trace: TensorF32, expr_y_min: TensorF32, expr_y_span: TensorF32
+    ) -> TensorF32:
+        """Create vertical relative bounding-box features for a single trace.
+
+        Parameters
+        ----------
+        trace : Tensor
+            Normalized trace points with shape `(N_trace, 3)`.
+        expr_y_min : Tensor
+            Minimum y-coordinate for the full expression.
+        expr_y_span : Tensor
+            Full-expression vertical span (max - min)
+
+        Returns
+        -------
+        Tensor
+            Tensor `(N_trace, 2)` with columns `(y_center_rel, y_span_rel)`.
+            `y_center_rel` describes vertical placement (top/middle/bottom),
+            `y_span_rel` describes relative trace height.
+        """
+        y_coords = trace[:, 1]
+        trace_y_min = y_coords.min()
+        trace_y_max = y_coords.max()
+        trace_y_center = 0.5 * (trace_y_min + trace_y_max)
+        trace_y_span = trace_y_max - trace_y_min
+
+        trace_bbox = torch.empty((trace.shape[0], 2), dtype=torch.float32, device=trace.device)
+        trace_bbox[:, 0] = (trace_y_center - expr_y_min) / expr_y_span
+        trace_bbox[:, 1] = trace_y_span / expr_y_span
+        return trace_bbox
 
 
 class HMEDatasetRaw(_HMEDatasetBase):

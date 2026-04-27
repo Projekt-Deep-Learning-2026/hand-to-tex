@@ -95,7 +95,7 @@ class TestHMEDataLoaderFactory:
 
         assert padded_ft.ndim == 3
         assert padded_ft.shape[0] == 1  # batch size
-        assert padded_ft.shape[2] == 10  # feature dim
+        assert padded_ft.shape[2] == 12  # feature dim
         assert isinstance(ft_lengths, torch.Tensor)
         assert padded_ts.dtype == torch.long
         assert isinstance(ts_lengths, torch.Tensor)
