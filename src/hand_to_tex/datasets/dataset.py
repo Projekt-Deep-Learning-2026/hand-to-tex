@@ -60,7 +60,7 @@ class _HMEDatasetBase(Dataset, ABC):
             - x_norm, y_norm
                 Normalised coordinates of a trace point
             - t_rel
-                Relative timestamp (shifted `t := t - t0`)
+                Relative timestamp normalised to sample time span
             - dx, dy, dt
                 Change in position and time between every TracePoint
             - speed
@@ -115,15 +115,13 @@ class _HMEDatasetBase(Dataset, ABC):
             feats[:, col] = (feats[:, col] - mean) / std
             feats[:, col] = torch.clamp(feats[:, col], min=-5.0, max=5.0)
 
-        feats = torch.nan_to_num(feats, nan=0.0, posinf=5.0, neginf=-5.0)
-
         return feats
 
     @staticmethod
     def _normalise_data(xyt: TensorF32) -> TensorF32:
         """Perform normalization on `(x, y, t)` points tensor.
         Normalization uses uniform scaling to preserve aspect ratio,
-        and shifts time so that `t := t - t0`.
+        and normalizes time within a sample so that `t` is in `[0, 1]`.
 
         Parameters
         ----------
@@ -138,10 +136,11 @@ class _HMEDatasetBase(Dataset, ABC):
         xy_min = xyt[:, :2].min(dim=0, keepdim=True).values
         xy_max = xyt[:, :2].max(dim=0, keepdim=True).values
         t0 = xyt[:, 2:3].min(dim=0, keepdim=True).values
+        t1 = xyt[:, 2:3].max(dim=0, keepdim=True).values
 
         xy_range = (xy_max - xy_min).max() + _HMEDatasetBase.EPS
         xy_norm = (xyt[:, :2] - xy_min) / xy_range
-        t_norm = xyt[:, 2:3] - t0
+        t_norm = (xyt[:, 2:3] - t0) / (t1 - t0 + _HMEDatasetBase.EPS)
 
         return torch.cat([xy_norm, t_norm], dim=1)
 
