@@ -177,6 +177,12 @@ htt-demo --ckpt data/models/last.ckpt --input data/mathwriting-2024/test
 htt-demo --ckpt data/models/last.ckpt --input tests/fixtures --save-img
 ```
 
+### Show multiple samples per figure
+
+```bash
+htt-demo --ckpt data/models/last.ckpt --input tests/fixtures --samples-per-figure 4
+```
+
 ### Interactive drawing mode
 
 ```bash

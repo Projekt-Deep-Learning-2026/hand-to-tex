@@ -1,7 +1,7 @@
 import torch
-from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 
+from hand_to_tex.types import Batch, Sample
 from hand_to_tex.utils import LatexVocab
 
 
@@ -16,7 +16,7 @@ class HMECollateFunction:
         """
         self.pad_idx = vocab.PAD
 
-    def __call__(self, batch: list[tuple[Tensor, Tensor]]) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    def __call__(self, batch: list[Sample]) -> Batch:
         """Collate a list of variable-length samples into padded batch tensors.
 
         Parameters
