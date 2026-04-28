@@ -17,7 +17,7 @@ class TestHMEDatasetPreprocessed:
         features, tokens = ds[0]
 
         assert features.ndim == 2
-        assert features.shape[1] == 10
+        assert features.shape[1] == 12
         assert features.dtype == torch.float32
         assert tokens.dtype == torch.long
         assert tokens.numel() > 0
@@ -41,15 +41,15 @@ class TestHMEDatasetPreprocessed:
 
     def test_inf_and_nan_samples_are_filtered(self, tmp_path: Path, vocab):
         good = (
-            torch.randn(10, 10, dtype=torch.float32),
+            torch.randn(10, 12, dtype=torch.float32),
             torch.tensor([vocab.SOS, vocab.EOS], dtype=torch.long),
         )
         nan_sample = (
-            torch.full((10, 10), float("nan"), dtype=torch.float32),
+            torch.full((10, 12), float("nan"), dtype=torch.float32),
             torch.tensor([vocab.SOS, vocab.EOS], dtype=torch.long),
         )
         inf_sample = (
-            torch.full((10, 10), float("inf"), dtype=torch.float32),
+            torch.full((10, 12), float("inf"), dtype=torch.float32),
             torch.tensor([vocab.SOS, vocab.EOS], dtype=torch.long),
         )
 

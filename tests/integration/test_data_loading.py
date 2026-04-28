@@ -42,7 +42,7 @@ class TestDataLoadingPipelineRaw:
         padded_ft, ft_lengths, padded_ts, ts_lengths = next(iter(loader))
 
         assert padded_ft.shape[0] == 2
-        assert padded_ft.shape[2] == 10
+        assert padded_ft.shape[2] == 12
         assert padded_ft.dtype == torch.float32
         assert padded_ts.dtype == torch.long
         assert ft_lengths.shape == (2,)
@@ -103,7 +103,7 @@ class TestDataModuleEndToEnd:
 
         for batch in (train_batch, val_batch):
             padded_ft, ft_lengths, padded_ts, ts_lengths = batch
-            assert padded_ft.shape[2] == 10
+            assert padded_ft.shape[2] == 12
             assert padded_ft.dtype == torch.float32
             assert padded_ts.dtype == torch.long
             assert ft_lengths.shape[0] == padded_ft.shape[0]

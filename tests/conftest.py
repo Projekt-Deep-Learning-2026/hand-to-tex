@@ -84,7 +84,7 @@ def tiny_lit_module(tiny_model_kwargs: dict):
 def synthetic_batch(vocab: LatexVocab):
     """Deterministic 4-tuple matching HMECollateFunction output."""
     torch.manual_seed(0)
-    B, T_src, F = 2, 24, 10
+    B, T_src, F = 2, 24, 12
     padded_features = torch.randn(B, T_src, F, dtype=torch.float32)
     feature_lengths = torch.tensor([T_src, T_src - 4], dtype=torch.long)
 
@@ -109,7 +109,7 @@ def _make_pt_split(path: Path, n_samples: int, vocab: LatexVocab) -> None:
     for i in range(n_samples):
         # Vary length so collation actually pads across samples.
         T = 24 + (i % 3) * 4
-        features = torch.randn(T, 10, dtype=torch.float32)
+        features = torch.randn(T, 12, dtype=torch.float32)
         tokens = torch.tensor(
             [vocab.SOS, vocab.encode("x"), vocab.encode("+"), vocab.encode("y"), vocab.EOS],
             dtype=torch.long,
