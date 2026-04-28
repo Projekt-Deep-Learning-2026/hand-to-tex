@@ -28,10 +28,9 @@ type SplitName = Literal["train", "valid", "test"]
 type ProcessingStatus = Literal["success", "error", "empty", "filtered"]
 type SampleID = str
 
+F16_MAX = float(torch.finfo(torch.float16).max)
 
-# TODO
-# Currently there is an issue that the extract_features returns tensor with f32 precision
-# and there is need to change that but thats for issue #29
+
 def _process_single_file(
     pth: Path,
     vocab: LatexVocab,
@@ -45,10 +44,13 @@ def _process_single_file(
     FILTERED = ("filtered", None, ID)
     try:
         ink = InkData.load(pth)
-        fts = HMEDatasetRaw.extract_features(ink).to(dtype=torch.float16)
+        fts = HMEDatasetRaw.extract_features(ink)
 
         if fts.size(0) == 0:
             return EMPTY
+
+        fts = torch.nan_to_num(fts, nan=0.0, posinf=F16_MAX, neginf=-F16_MAX)
+        fts = torch.clamp(fts, min=-F16_MAX, max=F16_MAX).to(dtype=torch.float16)
 
         tokens = vocab.encode_expr(ink.tex_norm)
         tokens = torch.tensor(tokens, dtype=torch.int16)
@@ -62,7 +64,7 @@ def _process_single_file(
 
         return "success", (fts, tokens), ID
 
-    except Exception as _e:
+    except Exception:
         return ERR
 
 

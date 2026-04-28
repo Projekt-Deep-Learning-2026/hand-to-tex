@@ -71,7 +71,7 @@ class HMELightningModule(pl.LightningModule):
         self.vocab = LatexVocab.load(vocab_path)
 
         self.model = ExperimentalTransformer(
-            in_channels=10,
+            in_channels=12,
             vocab_size=len(self.vocab),
             pad_idx=self.vocab.PAD,
             d_model=d_model,

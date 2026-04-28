@@ -87,7 +87,7 @@ class BaselineTransformer(nn.Module):
         num_decoder_layers: int = 4,
         dim_feedforward: int = 1024,
         dropout: float = 0.1,
-        in_features: int = 10,
+        in_features: int = 12,
     ):
         """
         Initializes the BaselineTransformer architecture.
@@ -113,7 +113,7 @@ class BaselineTransformer(nn.Module):
             The dropout probability applied across the model.
         in_features : int, optional
             The number of distinct features provided per chronological point in the
-            input tensor. Default is 10.
+            input tensor. Default is 12.
         """
         super().__init__()
         self.pad_idx = pad_idx
@@ -188,9 +188,8 @@ class BaselineTransformer(nn.Module):
         src_encoded = src_encoded.permute(0, 2, 1)
 
         new_src_lens = (
-            (src_lengths + 2 * self.input_conv.padding[0] - self.input_conv.kernel_size[0])  # type: ignore
-            // self.input_conv.stride[0]
-        ) + 1
+            src_lengths + 2 * self.input_conv.padding[0] - self.input_conv.kernel_size[0]
+        ) // self.input_conv.stride[0] + 1  # type: ignore
 
         max_len_conv = src_encoded.shape[1]
         src_key_padding_mask = torch.arange(max_len_conv, device=src.device).unsqueeze(0).expand(

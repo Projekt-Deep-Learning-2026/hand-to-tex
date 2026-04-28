@@ -7,7 +7,7 @@ from hand_to_tex.models.components import ExperimentalTransformer
 
 def _build_tiny_model(vocab_size: int = 32, pad_idx: int = 0) -> ExperimentalTransformer:
     return ExperimentalTransformer(
-        in_channels=10,
+        in_channels=12,
         vocab_size=vocab_size,
         pad_idx=pad_idx,
         d_model=32,
@@ -26,7 +26,7 @@ class TestExperimentalTransformerForward:
         model = _build_tiny_model(vocab_size=vocab_size).eval()
 
         B, T_src, T_tgt = 2, 24, 5
-        src = torch.randn(B, T_src, 10)
+        src = torch.randn(B, T_src, 12)
         src_lengths = torch.tensor([T_src, T_src - 4], dtype=torch.long)
         tgt = torch.randint(low=1, high=vocab_size, size=(B, T_tgt))
 
@@ -43,7 +43,7 @@ class TestExperimentalTransformerForward:
         # T_src=24 -> conv1(k=5,s=2,p=1): floor((24+2-4-1)/2)+1 = 11
         #          -> conv2(k=5,s=2,p=2): floor((11+4-4-1)/2)+1 = 6
         T_src = 24
-        src = torch.randn(B, T_src, 10)
+        src = torch.randn(B, T_src, 12)
         src_lengths = torch.tensor([T_src, T_src], dtype=torch.long)
         tgt = torch.randint(low=1, high=10, size=(B, 4))
 
@@ -54,7 +54,7 @@ class TestExperimentalTransformerForward:
     def test_forward_is_deterministic_in_eval_mode(self):
         torch.manual_seed(0)
         model = _build_tiny_model().eval()
-        src = torch.randn(2, 24, 10)
+        src = torch.randn(2, 24, 12)
         src_lengths = torch.tensor([24, 20], dtype=torch.long)
         tgt = torch.randint(low=1, high=10, size=(2, 5))
 
@@ -68,7 +68,7 @@ class TestExperimentalTransformerForward:
         pad_idx = 0
         model = _build_tiny_model(pad_idx=pad_idx).eval()
 
-        src = torch.randn(2, 24, 10)
+        src = torch.randn(2, 24, 12)
         src_lengths = torch.tensor([24, 24], dtype=torch.long)
 
         tgt_a = torch.tensor([[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]])
@@ -85,7 +85,7 @@ class TestEncodeDecode:
         torch.manual_seed(0)
         model = _build_tiny_model().eval()
         B, T_src = 2, 24
-        src = torch.randn(B, T_src, 10)
+        src = torch.randn(B, T_src, 12)
         src_lengths = torch.tensor([T_src, T_src - 8], dtype=torch.long)
 
         memory, mem_mask = model.encode(src, src_lengths)
@@ -102,7 +102,7 @@ class TestEncodeDecode:
         model = _build_tiny_model(vocab_size=vocab_size).eval()
 
         B, T_src = 2, 24
-        src = torch.randn(B, T_src, 10)
+        src = torch.randn(B, T_src, 12)
         src_lengths = torch.tensor([T_src, T_src], dtype=torch.long)
         memory, mem_mask = model.encode(src, src_lengths)
 
@@ -130,7 +130,7 @@ class TestPaddingMaskAndLengthMath:
     def test_downsampled_lengths_match_actual_conv_output(self):
         model = _build_tiny_model().eval()
         T_src = 32
-        src = torch.randn(2, T_src, 10)
+        src = torch.randn(2, T_src, 12)
         x = src.transpose(1, 2)
         x = model.input_proj(x)
         actual_len = x.shape[2]
@@ -153,7 +153,7 @@ class TestBackwardPass:
         model = _build_tiny_model(vocab_size=vocab_size).train()
 
         B = 2
-        src = torch.randn(B, 24, 10)
+        src = torch.randn(B, 24, 12)
         src_lengths = torch.tensor([24, 24], dtype=torch.long)
         tgt = torch.randint(low=1, high=vocab_size, size=(B, 5))
 

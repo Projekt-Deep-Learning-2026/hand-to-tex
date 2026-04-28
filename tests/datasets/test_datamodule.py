@@ -52,7 +52,7 @@ class TestDataModuleLifecycle:
 
         padded_ft, ft_lengths, padded_ts, ts_lengths = batch
         assert padded_ft.ndim == 3
-        assert padded_ft.shape[2] == 10
+        assert padded_ft.shape[2] == 12
         assert padded_ft.dtype == torch.float32
         assert ft_lengths.ndim == 1
         assert padded_ts.dtype == torch.long
