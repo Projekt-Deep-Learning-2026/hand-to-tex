@@ -195,7 +195,8 @@ def main() -> None:
 
         padded_features, feature_lengths, _padded_tokens, _token_lengths = batch
         src = padded_features.to(device)
-        in_ch = baseline.model.conv1.weight.shape[1]
+        conv1 = getattr(baseline.model, "conv1", None)
+        in_ch = conv1.weight.shape[1] if conv1 is not None else src.shape[2]
         if src.shape[2] > in_ch:
             src = src[:, :, :in_ch]
         src_lengths = feature_lengths.to(device)

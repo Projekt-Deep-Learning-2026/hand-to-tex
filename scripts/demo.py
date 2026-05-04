@@ -38,7 +38,8 @@ def _predict_expression(
         raise ValueError("This .inkml file doesn't contain any traces")
 
     features_batched = features.unsqueeze(0).to(device)
-    in_ch = model.model.conv1.weight.shape[1]
+    conv1 = getattr(model.model, "conv1", None)
+    in_ch = conv1.weight.shape[1] if conv1 is not None else features_batched.shape[2]
     if features_batched.shape[2] > in_ch:
         features_batched = features_batched[:, :, :in_ch]
     lengths = torch.tensor([features.size(0)], dtype=torch.long, device=device)
@@ -155,7 +156,7 @@ def _load_hparams(ckpt_path: Path) -> dict:
     return hparams
 
 
-def _build_model(vocab: LatexVocab, hparams: dict) -> ExperimentalTransformer:
+def _build_model(vocab: LatexVocab, hparams: dict):
     use_kvcache = hparams.get("use_kvcache", False)
     model_cls = ExperimentalTransformerKVCache if use_kvcache else ExperimentalTransformer
     return model_cls(
