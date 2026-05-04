@@ -22,6 +22,10 @@ from pathlib import Path
 import torch
 
 from hand_to_tex.datasets import HMEDataLoaderFactory
+from hand_to_tex.models.components import (
+    ExperimentalTransformer,
+    ExperimentalTransformerKVCache,
+)
 from hand_to_tex.models.lit_module import HMELightningModule
 from hand_to_tex.utils import LatexVocab
 
@@ -70,16 +74,43 @@ def _sync(device: torch.device) -> None:
 
 def _load_module(
     vocab_path: str,
+    vocab: LatexVocab,
     ckpt_path: Path,
     device: torch.device,
     *,
     use_kvcache: bool,
 ):
     """Instantiate a Lightning module and load checkpoint weights."""
-    module = HMELightningModule(vocab_path=vocab_path, use_kvcache=use_kvcache)
-
+    hparams: dict = {}
+    ckpt = None
     if ckpt_path.exists():
         ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+        hparams = ckpt.get("hyper_parameters", {})
+
+    in_channels = hparams.get("in_channels", 12)
+    if ckpt is not None:
+        state_dict = ckpt.get("state_dict", ckpt)
+        for key in state_dict.keys():
+            if key.endswith("conv1.weight"):
+                in_channels = state_dict[key].shape[1]
+                break
+
+    model_cls = ExperimentalTransformerKVCache if use_kvcache else ExperimentalTransformer
+    model = model_cls(
+        in_channels=in_channels,
+        vocab_size=len(vocab),
+        pad_idx=vocab.PAD,
+        d_model=hparams.get("d_model", 256),
+        nhead=hparams.get("nhead", 8),
+        num_encoder_layers=hparams.get("num_encoder_layers", 4),
+        num_decoder_layers=hparams.get("num_decoder_layers", 4),
+        dim_feedforward=hparams.get("dim_feedforward", 1024),
+        dropout=hparams.get("dropout", 0.1),
+    )
+
+    module = HMELightningModule(vocab_path=vocab_path, model=model)
+
+    if ckpt is not None:
         state_dict = ckpt.get("state_dict", ckpt)
         cleaned = {k.replace("._orig_mod.", "."): v for k, v in state_dict.items()}
         module.load_state_dict(cleaned, strict=False)
@@ -143,8 +174,8 @@ def main() -> None:
     n_batches = min(args.num_batches, total_batches)
 
     print(f"\n  Loading checkpoint: {ckpt}")
-    baseline = _load_module(str(VOCAB_PATH), ckpt, device, use_kvcache=False)
-    kvcache = _load_module(str(VOCAB_PATH), ckpt, device, use_kvcache=True)
+    baseline = _load_module(str(VOCAB_PATH), vocab, ckpt, device, use_kvcache=False)
+    kvcache = _load_module(str(VOCAB_PATH), vocab, ckpt, device, use_kvcache=True)
 
     baseline.max_generate_len = args.max_len
     kvcache.max_generate_len = args.max_len
@@ -164,6 +195,9 @@ def main() -> None:
 
         padded_features, feature_lengths, _padded_tokens, _token_lengths = batch
         src = padded_features.to(device)
+        in_ch = baseline.model.conv1.weight.shape[1]
+        if src.shape[2] > in_ch:
+            src = src[:, :, :in_ch]
         src_lengths = feature_lengths.to(device)
         tag = f"batch {batch_idx + 1}/{n_batches}"
 

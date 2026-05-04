@@ -11,11 +11,7 @@ from torchmetrics import MeanMetric, MetricCollection
 from torchmetrics.text import CharErrorRate, WordErrorRate
 
 import wandb
-from hand_to_tex.models.components import (
-    BaseDecoderModel,
-    ExperimentalTransformer,
-    ExperimentalTransformerKVCache,
-)
+from hand_to_tex.models.components import BaseDecoderModel
 from hand_to_tex.utils import LatexVocab, logger
 
 
@@ -29,14 +25,8 @@ class HMELightningModule(pl.LightningModule):
     def __init__(
         self,
         vocab_path: str,
+        model: BaseDecoderModel,
         pretrained_model_path: str | None = None,
-        use_kvcache: bool = False,
-        d_model: int = 256,
-        nhead: int = 8,
-        num_encoder_layers: int = 4,
-        num_decoder_layers: int = 4,
-        dim_feedforward: int = 1024,
-        dropout: float = 0.1,
         max_generate_len: int = 150,
         lr: float = 3e-4,
         label_smoothing: float = 0.1,
@@ -74,24 +64,7 @@ class HMELightningModule(pl.LightningModule):
         super().__init__()
 
         self.vocab = LatexVocab.load(vocab_path)
-
-        model_cls: type[BaseDecoderModel]
-        if use_kvcache:
-            model_cls = ExperimentalTransformerKVCache
-        else:
-            model_cls = ExperimentalTransformer
-
-        self.model = model_cls(
-            in_channels=10,
-            vocab_size=len(self.vocab),
-            pad_idx=self.vocab.PAD,
-            d_model=d_model,
-            nhead=nhead,
-            num_encoder_layers=num_encoder_layers,
-            num_decoder_layers=num_decoder_layers,
-            dim_feedforward=dim_feedforward,
-            dropout=dropout,
-        )
+        self.model = model
         self.max_generate_len = max_generate_len
         self.lr = lr
         self.weight_decay = weight_decay

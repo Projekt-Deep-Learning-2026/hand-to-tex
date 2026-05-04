@@ -10,8 +10,12 @@ from matplotlib.figure import Figure
 
 from hand_to_tex.datasets.dataset import _HMEDatasetBase
 from hand_to_tex.datasets.ink_data import InkData
+from hand_to_tex.models.components import (
+    ExperimentalTransformer,
+    ExperimentalTransformerKVCache,
+)
 from hand_to_tex.models.lit_module import HMELightningModule
-from hand_to_tex.utils import logger
+from hand_to_tex.utils import LatexVocab, logger
 from hand_to_tex.utils.interactive import HMEDrawingApp
 
 
@@ -34,6 +38,9 @@ def _predict_expression(
         raise ValueError("This .inkml file doesn't contain any traces")
 
     features_batched = features.unsqueeze(0).to(device)
+    in_ch = model.model.conv1.weight.shape[1]
+    if features_batched.shape[2] > in_ch:
+        features_batched = features_batched[:, :, :in_ch]
     lengths = torch.tensor([features.size(0)], dtype=torch.long, device=device)
 
     with torch.inference_mode():
@@ -133,7 +140,35 @@ def _show_or_save_figure(fig: Figure, save_img: bool, out_filename: str | None) 
         plt.close(fig)
     else:
         plt.show()
-        plt.close(fig)
+
+
+def _load_hparams(ckpt_path: Path) -> dict:
+    if not ckpt_path.exists():
+        return {}
+    ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+    hparams = ckpt.get("hyper_parameters", {})
+    state_dict = ckpt.get("state_dict", {})
+    for key in state_dict.keys():
+        if key.endswith("conv1.weight"):
+            hparams["in_channels"] = state_dict[key].shape[1]
+            break
+    return hparams
+
+
+def _build_model(vocab: LatexVocab, hparams: dict) -> ExperimentalTransformer:
+    use_kvcache = hparams.get("use_kvcache", False)
+    model_cls = ExperimentalTransformerKVCache if use_kvcache else ExperimentalTransformer
+    return model_cls(
+        in_channels=hparams.get("in_channels", 12),
+        vocab_size=len(vocab),
+        pad_idx=vocab.PAD,
+        d_model=hparams.get("d_model", 256),
+        nhead=hparams.get("nhead", 8),
+        num_encoder_layers=hparams.get("num_encoder_layers", 4),
+        num_decoder_layers=hparams.get("num_decoder_layers", 4),
+        dim_feedforward=hparams.get("dim_feedforward", 1024),
+        dropout=hparams.get("dropout", 0.1),
+    )
 
 
 def run_batch_inference(
@@ -231,9 +266,14 @@ def main():
     logger.info(f"Initialising inference on: {device}")
     logger.info(f"Loading model weights from: {args.ckpt}")
 
+    vocab = LatexVocab.load(args.vocab)
+    hparams = _load_hparams(Path(args.ckpt))
+    decoder_model = _build_model(vocab, hparams)
+
     model = HMELightningModule.load_from_checkpoint(
         checkpoint_path=args.ckpt,
         vocab_path=args.vocab,
+        model=decoder_model,
         map_location=device,
         pretrained_model_path=None,
         weights_only=True,

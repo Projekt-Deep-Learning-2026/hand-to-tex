@@ -59,12 +59,6 @@ def vocab_path() -> str:
 def tiny_model_kwargs(vocab_path: str) -> dict:
     return {
         "vocab_path": vocab_path,
-        "d_model": 32,
-        "nhead": 2,
-        "num_encoder_layers": 1,
-        "num_decoder_layers": 1,
-        "dim_feedforward": 64,
-        "dropout": 0.0,
         "max_generate_len": 8,
         "lr": 1e-3,
         "label_smoothing": 0.0,
@@ -73,11 +67,36 @@ def tiny_model_kwargs(vocab_path: str) -> dict:
 
 
 @pytest.fixture
-def tiny_lit_module(tiny_model_kwargs: dict):
+def tiny_decoder_kwargs() -> dict:
+    return {
+        "d_model": 32,
+        "nhead": 2,
+        "num_encoder_layers": 1,
+        "num_decoder_layers": 1,
+        "dim_feedforward": 64,
+        "dropout": 0.0,
+    }
+
+
+@pytest.fixture
+def tiny_lit_module(tiny_model_kwargs: dict, tiny_decoder_kwargs: dict):
+    from hand_to_tex.models.components import ExperimentalTransformer
     from hand_to_tex.models.lit_module import HMELightningModule
 
     torch.manual_seed(0)
-    return HMELightningModule(**tiny_model_kwargs)
+    vocab = LatexVocab.load(tiny_model_kwargs["vocab_path"])
+    model = ExperimentalTransformer(
+        in_channels=12,
+        vocab_size=len(vocab),
+        pad_idx=vocab.PAD,
+        d_model=tiny_decoder_kwargs["d_model"],
+        nhead=tiny_decoder_kwargs["nhead"],
+        num_encoder_layers=tiny_decoder_kwargs["num_encoder_layers"],
+        num_decoder_layers=tiny_decoder_kwargs["num_decoder_layers"],
+        dim_feedforward=tiny_decoder_kwargs["dim_feedforward"],
+        dropout=tiny_decoder_kwargs["dropout"],
+    )
+    return HMELightningModule(model=model, **tiny_model_kwargs)
 
 
 @pytest.fixture
