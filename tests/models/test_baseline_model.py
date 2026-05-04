@@ -45,7 +45,7 @@ class TestBaselineTransformerForward:
         model = self._build(vocab_size=vocab_size).eval()
 
         B, T_src, T_tgt = 2, 24, 5
-        src = torch.randn(B, T_src, 10)
+        src = torch.randn(B, T_src, 12)
         src_lengths = torch.tensor([T_src, T_src - 4], dtype=torch.long)
         tgt = torch.randint(low=1, high=vocab_size, size=(B, T_tgt))
 

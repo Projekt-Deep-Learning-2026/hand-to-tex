@@ -22,6 +22,7 @@ It includes the full workflow:
 git clone https://github.com/Projekt-Deep-Learning-2026/hand-to-tex.git
 cd hand-to-tex
 uv sync --dev
+uv run pre-commit install
 ```
 
 ### 3. Activate your virtual environment (recommended)
@@ -29,6 +30,9 @@ uv sync --dev
 If you activate `.venv`, you can run project commands directly without prefixing them with `uv run`.
 
 ```bash
+# MacOS/Linux
+source .venv/bin/activate
+
 # Git Bash (Windows)
 source .venv/Scripts/activate
 
