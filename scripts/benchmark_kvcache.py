@@ -2,8 +2,8 @@
 
 Loads the real test set from ``data/mathwriting-2024`` and a trained checkpoint
 from ``data/last.ckpt``, then compares generation speed between:
-  • **baseline** (lit_module)          — re-decodes the full prefix at every step
-  • **kv-cache** (lit_module_kvcache)  — caches K/V projections, single token per step
+    • **baseline** (lit_module)          — re-decodes the full prefix at every step
+    • **kv-cache** (lit_module)          — caches K/V projections, single token per step
 
 Usage
 -----
@@ -22,8 +22,7 @@ from pathlib import Path
 import torch
 
 from hand_to_tex.datasets import HMEDataLoaderFactory
-from hand_to_tex.models.lit_module import HMELightningModule as BaselineModule
-from hand_to_tex.models.lit_module_kvcache import HMELightningModule as KVCacheModule
+from hand_to_tex.models.lit_module import HMELightningModule
 from hand_to_tex.utils import LatexVocab
 
 ROOT = Path("data/mathwriting-2024")
@@ -69,9 +68,15 @@ def _sync(device: torch.device) -> None:
         torch.mps.synchronize()
 
 
-def _load_module(module_cls, vocab_path: str, ckpt_path: Path, device: torch.device):
+def _load_module(
+    vocab_path: str,
+    ckpt_path: Path,
+    device: torch.device,
+    *,
+    use_kvcache: bool,
+):
     """Instantiate a Lightning module and load checkpoint weights."""
-    module = module_cls(vocab_path=vocab_path)
+    module = HMELightningModule(vocab_path=vocab_path, use_kvcache=use_kvcache)
 
     if ckpt_path.exists():
         ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
@@ -138,8 +143,8 @@ def main() -> None:
     n_batches = min(args.num_batches, total_batches)
 
     print(f"\n  Loading checkpoint: {ckpt}")
-    baseline = _load_module(BaselineModule, str(VOCAB_PATH), ckpt, device)
-    kvcache = _load_module(KVCacheModule, str(VOCAB_PATH), ckpt, device)
+    baseline = _load_module(str(VOCAB_PATH), ckpt, device, use_kvcache=False)
+    kvcache = _load_module(str(VOCAB_PATH), ckpt, device, use_kvcache=True)
 
     baseline.max_generate_len = args.max_len
     kvcache.max_generate_len = args.max_len

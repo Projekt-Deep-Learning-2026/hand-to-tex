@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from hand_to_tex.models.components.base import BaseDecoderModel
+
 type LayerKVCache = dict[str, Tensor]
 type DecoderKVCache = dict[str, object]
 
@@ -75,7 +77,7 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-class ExperimentalTransformer(nn.Module):
+class ExperimentalTransformer(BaseDecoderModel):
     """Sequence-to-sequence transformer for handwriting feature decoding.
 
     Source inputs are expected as `(B, T_src, in_channels)` float features.
@@ -519,3 +521,64 @@ class ExperimentalTransformer(nn.Module):
         logits_last = self.fc_out(x)[:, -1, :]
         cache["step"] = step + 1
         return logits_last, cache
+
+    @torch.inference_mode()
+    def generate(
+        self,
+        src: Tensor,
+        src_lengths: Tensor,
+        *,
+        sos_idx: int,
+        eos_idx: int,
+        max_len: int,
+    ) -> Tensor:
+        """Generate token sequences using KV-cache decoding.
+
+        Parameters
+        ----------
+        src:
+            Input feature tensor.
+        src_lengths:
+            Lengths of the input sequences.
+        sos_idx:
+            Start-of-sequence token id.
+        eos_idx:
+            End-of-sequence token id.
+        max_len:
+            Maximum generated sequence length.
+        """
+        batch_size = src.size(0)
+        device = src.device
+
+        memory, mem_mask = self.encode(src, src_lengths)
+        kv_cache = self.init_kv_cache(memory)
+
+        tgt = torch.full(
+            (batch_size, max_len),
+            fill_value=self.pad_idx,
+            dtype=torch.long,
+            device=device,
+        )
+        tgt[:, 0] = sos_idx
+        unfinished_seqs = torch.ones(batch_size, dtype=torch.bool, device=device)
+
+        for step in range(1, max_len):
+            last_token = tgt[:, step - 1 : step]
+            next_token_logits, kv_cache = self.decode_step(
+                tgt_last=last_token,
+                memory=memory,
+                memory_key_padding_mask=mem_mask,
+                cache=kv_cache,
+            )
+
+            next_token = torch.argmax(next_token_logits, dim=-1)
+
+            tgt[:, step] = torch.where(unfinished_seqs, next_token, tgt[:, step])
+
+            unfinished_seqs = unfinished_seqs & (next_token != eos_idx)
+
+            if not unfinished_seqs.any():
+                tgt = tgt[:, : step + 1]
+                break
+
+        return tgt
