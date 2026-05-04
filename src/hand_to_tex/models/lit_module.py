@@ -5,12 +5,12 @@ import lightning.pytorch as pl
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import wandb
 from lightning.pytorch.loggers import WandbLogger
 from torch import Tensor
 from torchmetrics import MeanMetric, MetricCollection
 from torchmetrics.text import CharErrorRate, WordErrorRate
 
-import wandb
 from hand_to_tex.models.components import BaseDecoderModel
 from hand_to_tex.utils import LatexVocab, logger
 
