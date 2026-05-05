@@ -64,6 +64,9 @@ cover/
 *.mo
 *.pot
 
+# Macos file
+*.DS_Store
+
 # Django stuff:
 *.log
 local_settings.py
