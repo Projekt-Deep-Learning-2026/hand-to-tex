@@ -19,5 +19,20 @@ class BaseDecoderModel(nn.Module, ABC):
         eos_idx: int,
         max_len: int,
     ) -> Tensor:
-        """Generate token ids from input features."""
+        """Generate token sequences from input features.
+
+        Parameters
+        ----------
+        src:
+            Input feature tensor.
+        src_lengths:
+            Lengths of the input sequences.
+        sos_idx:
+            Start-of-sequence token id.
+        eos_idx:
+            End-of-sequence token id.
+        max_len:
+            Maximum generated sequence length.
+        """
+
         raise NotImplementedError

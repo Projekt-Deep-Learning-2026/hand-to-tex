@@ -301,21 +301,7 @@ class ExperimentalTransformer(BaseDecoderModel):
         eos_idx: int,
         max_len: int,
     ) -> Tensor:
-        """Generate token sequences from input features.
 
-        Parameters
-        ----------
-        src:
-            Input feature tensor.
-        src_lengths:
-            Lengths of the input sequences.
-        sos_idx:
-            Start-of-sequence token id.
-        eos_idx:
-            End-of-sequence token id.
-        max_len:
-            Maximum generated sequence length.
-        """
         batch_size = src.size(0)
         device = src.device
 

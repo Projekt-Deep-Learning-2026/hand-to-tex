@@ -64,8 +64,11 @@ cover/
 *.mo
 *.pot
 
-# Macos file
+# Macos files
 *.DS_Store
+
+# Vscode settings
+.vscode/*
 
 # Django stuff:
 *.log

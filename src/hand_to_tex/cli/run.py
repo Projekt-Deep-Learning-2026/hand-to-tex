@@ -11,13 +11,12 @@ from hand_to_tex.utils import LatexVocab
 
 class HandToTexCLI(LightningCLI):
     def before_instantiate_classes(self):
-        # Performance tweaks
+
         torch.set_float32_matmul_precision("high")
         os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
         # Merge config-level model block. Expect either:
         #  - model.class_path + model.init_args (preferred)
-        #  - legacy flat model hyperparameters (fallback)
         cfg = getattr(self, "config", {}) or {}
         model_cfg = cfg.get("model") if isinstance(cfg, dict) else None
 
@@ -40,26 +39,6 @@ class HandToTexCLI(LightningCLI):
             mod = import_module(module_name)
             ModelCls = getattr(mod, class_name)
             decoder_instance = ModelCls(**init_args)
-
-        # legacy fallback: attempt to construct ExperimentalTransformer
-        if decoder_instance is None:
-            legacy = cfg.get("model", {}) if isinstance(cfg, dict) else {}
-            try:
-                from hand_to_tex.models.components import ExperimentalTransformer
-
-                decoder_instance = ExperimentalTransformer(
-                    in_channels=legacy.get("in_channels", 12),
-                    vocab_size=legacy.get("vocab_size"),
-                    pad_idx=legacy.get("pad_idx"),
-                    d_model=legacy.get("d_model", 256),
-                    nhead=legacy.get("nhead", 8),
-                    num_encoder_layers=legacy.get("num_encoder_layers", 4),
-                    num_decoder_layers=legacy.get("num_decoder_layers", 4),
-                    dim_feedforward=legacy.get("dim_feedforward", 1024),
-                    dropout=legacy.get("dropout", 0.1),
-                )
-            except Exception:
-                decoder_instance = None
 
         # attach built decoder into instantiate kwargs so LightningCLI will
         # pass it to HMELightningModule constructor as `model=`.
