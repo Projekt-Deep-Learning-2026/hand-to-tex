@@ -1,6 +1,10 @@
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from torch import Tensor
+
+if TYPE_CHECKING:
+    from hand_to_tex.models.components.base import BaseDecoderModel
 
 # Ink Data types
 type TracePoint = tuple[float, float, float]
@@ -33,6 +37,17 @@ type TensorBool = Tensor
 
 type Transformation[TensorType: Tensor] = Callable[[TensorType], TensorType]
 """A callable function or object that applies a transformation module to a given tensor."""
+
+# Model Interface Types
+type DecoderModel = "BaseDecoderModel"
+"""Model implementing the autoregressive `generate()` interface."""
+
+# KV-cache Types
+type LayerKVCache = dict[str, Tensor]
+"""Per-layer KV-cache with projected tensors (e.g., `self_k`, `self_v`, `mem_k`, `mem_v`)."""
+
+type DecoderKVCache = dict[str, int | list[LayerKVCache]]
+"""Decoder KV-cache storing the current step and per-layer cache tensors."""
 
 # Feature Types
 type Features = TensorF32

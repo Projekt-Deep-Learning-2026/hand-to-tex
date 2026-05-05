@@ -55,15 +55,21 @@ select = [
 
 ignore = ["E501"]
 
+[tool.ruff.lint.isort]
+known-third-party = ["wandb"]
+
 [project.scripts]
 htt-get-data = "scripts.download_data:main"
 htt-preprocess = "scripts.preprocess:main"
 htt-demo = "scripts.demo:main"
 htt-init = "scripts.init:main"
+htt-benchmark = "scripts.benchmark_kvcache:main"
 htt-run = "hand_to_tex.cli.run:main"
 
 [tool.uv.sources]
-torch = { index = "pytorch" }
+torch = [
+    { index = "pytorch", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
 
 [[tool.uv.index]]
 name = "pytorch"

@@ -5,7 +5,9 @@ from pathlib import Path
 import torch
 
 from hand_to_tex.datasets.datamodule import HMELightningDataModule
+from hand_to_tex.models.components import ExperimentalTransformer
 from hand_to_tex.models.lit_module import HMELightningModule
+from hand_to_tex.utils import LatexVocab
 
 
 def _build_trainer(default_root_dir: Path):
@@ -28,10 +30,23 @@ class TestTrainingSmoke:
         self,
         tmp_path: Path,
         tiny_model_kwargs: dict,
+        tiny_decoder_kwargs: dict,
         preprocessed_pt_root: Path,
     ):
         torch.manual_seed(0)
-        model = HMELightningModule(**tiny_model_kwargs)
+        vocab = LatexVocab.load(tiny_model_kwargs["vocab_path"])
+        decoder = ExperimentalTransformer(
+            in_channels=12,
+            vocab_size=len(vocab),
+            pad_idx=vocab.PAD,
+            d_model=tiny_decoder_kwargs["d_model"],
+            nhead=tiny_decoder_kwargs["nhead"],
+            num_encoder_layers=tiny_decoder_kwargs["num_encoder_layers"],
+            num_decoder_layers=tiny_decoder_kwargs["num_decoder_layers"],
+            dim_feedforward=tiny_decoder_kwargs["dim_feedforward"],
+            dropout=tiny_decoder_kwargs["dropout"],
+        )
+        model = HMELightningModule(model=decoder, **tiny_model_kwargs)
         dm = HMELightningDataModule(
             root=str(preprocessed_pt_root),
             processed=True,
@@ -49,10 +64,23 @@ class TestTrainingSmoke:
         self,
         tmp_path: Path,
         tiny_model_kwargs: dict,
+        tiny_decoder_kwargs: dict,
         preprocessed_pt_root: Path,
     ):
         torch.manual_seed(0)
-        model = HMELightningModule(**tiny_model_kwargs)
+        vocab = LatexVocab.load(tiny_model_kwargs["vocab_path"])
+        decoder = ExperimentalTransformer(
+            in_channels=12,
+            vocab_size=len(vocab),
+            pad_idx=vocab.PAD,
+            d_model=tiny_decoder_kwargs["d_model"],
+            nhead=tiny_decoder_kwargs["nhead"],
+            num_encoder_layers=tiny_decoder_kwargs["num_encoder_layers"],
+            num_decoder_layers=tiny_decoder_kwargs["num_decoder_layers"],
+            dim_feedforward=tiny_decoder_kwargs["dim_feedforward"],
+            dropout=tiny_decoder_kwargs["dropout"],
+        )
+        model = HMELightningModule(model=decoder, **tiny_model_kwargs)
         dm = HMELightningDataModule(
             root=str(preprocessed_pt_root),
             processed=True,
@@ -71,10 +99,23 @@ class TestTrainingStepGradientFlow:
     def test_manual_train_loop_reduces_loss_over_a_few_steps(
         self,
         tiny_model_kwargs: dict,
+        tiny_decoder_kwargs: dict,
         synthetic_batch,
     ):
         torch.manual_seed(0)
-        model = HMELightningModule(**tiny_model_kwargs).train()
+        vocab = LatexVocab.load(tiny_model_kwargs["vocab_path"])
+        decoder = ExperimentalTransformer(
+            in_channels=12,
+            vocab_size=len(vocab),
+            pad_idx=vocab.PAD,
+            d_model=tiny_decoder_kwargs["d_model"],
+            nhead=tiny_decoder_kwargs["nhead"],
+            num_encoder_layers=tiny_decoder_kwargs["num_encoder_layers"],
+            num_decoder_layers=tiny_decoder_kwargs["num_decoder_layers"],
+            dim_feedforward=tiny_decoder_kwargs["dim_feedforward"],
+            dropout=tiny_decoder_kwargs["dropout"],
+        )
+        model = HMELightningModule(model=decoder, **tiny_model_kwargs).train()
         optim = torch.optim.SGD(model.parameters(), lr=0.5)
 
         loss_before, _, _ = model._shared_step(synthetic_batch)
