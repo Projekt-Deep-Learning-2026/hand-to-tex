@@ -12,6 +12,13 @@ from torchmetrics import MeanMetric, MetricCollection
 from torchmetrics.text import CharErrorRate, WordErrorRate
 
 from hand_to_tex.models.components import BaseDecoderModel
+from hand_to_tex.types import (
+    Batch,
+    BatchedFeatures,
+    BatchedTokens,
+    FeatureLengths,
+    Tokens,
+)
 from hand_to_tex.utils import LatexVocab, logger
 
 
@@ -36,29 +43,19 @@ class HMELightningModule(pl.LightningModule):
 
         Parameters
         ----------
-        vocab_path:
+        vocab_path
             Path to the vocabulary file used for token encoding and decoding.
-        pretrained_model_path:
+        pretrained_model_path
             Optional path to a checkpoint with pretrained weights.
-        d_model:
-            Transformer hidden size.
-        nhead:
-            Number of attention heads in the transformer.
-        num_encoder_layers:
-            Number of encoder layers.
-        num_decoder_layers:
-            Number of decoder layers.
-        dim_feedforward:
-            Size of the feedforward layer inside transformer blocks.
-        dropout:
-            Dropout probability used in the transformer.
-        max_generate_len:
+        model
+            Instance of `BaseDecoderModel` to be used in the module
+        max_generate_len
             Maximum length of generated token sequences.
-        lr:
+        lr
             Learning rate used by the optimizer and scheduler.
-        label_smoothing:
+        label_smoothing
             Label smoothing value used in cross-entropy loss.
-        weight_decay:
+        weight_decay
             Weight decay applied to selected optimizer parameters.
         """
         super().__init__()
@@ -89,9 +86,9 @@ class HMELightningModule(pl.LightningModule):
         self.validation_samples = []
         self.test_samples = []
 
-        self.save_hyperparameters(ignore=["model", "vocab"])
+        self.save_hyperparameters(ignore=["model", "vocab", "pretrained_model_path"])
 
-    def forward(self, src: Tensor, src_lengths: Tensor, tgt: Tensor):
+    def forward(self, src: BatchedFeatures, src_lengths: FeatureLengths, tgt: BatchedTokens):
         """Run a forward pass through the transformer.
 
         Parameters
@@ -111,7 +108,7 @@ class HMELightningModule(pl.LightningModule):
         return self.model(src=src, src_lengths=src_lengths, tgt=tgt)
 
     @torch.inference_mode()
-    def generate(self, src: Tensor, src_lengths: Tensor) -> Tensor:
+    def generate(self, src: BatchedFeatures, src_lengths: FeatureLengths) -> Tensor:
         """Generate token sequences from input features.
 
         Parameters
@@ -134,9 +131,7 @@ class HMELightningModule(pl.LightningModule):
             max_len=self.max_generate_len,
         )
 
-    def _shared_step(
-        self, batch: tuple[Tensor, Tensor, Tensor, Tensor]
-    ) -> tuple[Tensor, Tensor, Tensor]:
+    def _shared_step(self, batch: Batch) -> tuple[Tensor, Tensor, Tensor]:
         """Compute the model output and loss for a batch.
 
         Parameters
@@ -162,7 +157,7 @@ class HMELightningModule(pl.LightningModule):
 
     def _eval_step(
         self,
-        batch: tuple[Tensor, Tensor, Tensor, Tensor],
+        batch: Batch,
         batch_idx: int,
         stage: Literal["val", "test"],
         metrics: MetricCollection,
@@ -227,7 +222,7 @@ class HMELightningModule(pl.LightningModule):
 
         return loss
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch: Batch, batch_idx: int):
         """Run one training step.
 
         Parameters
@@ -246,7 +241,7 @@ class HMELightningModule(pl.LightningModule):
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         return loss
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch: Batch, batch_idx: int):
         """Run one validation step and collect example predictions.
 
         Parameters
@@ -270,7 +265,7 @@ class HMELightningModule(pl.LightningModule):
             sample_store=self.validation_samples,
         )
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch: Batch, batch_idx: int):
         """Run one test step and collect example predictions.
 
         Parameters
@@ -408,7 +403,7 @@ class HMELightningModule(pl.LightningModule):
             },
         }
 
-    def _to_expr(self, tokens: Tensor) -> str:
+    def _to_expr(self, tokens: Tokens) -> str:
         token_ids = tokens.tolist()
         expr = []
         for t_id in token_ids:
