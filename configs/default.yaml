@@ -133,8 +133,6 @@ model:
   class_path: hand_to_tex.models.components.ExperimentalTransformer
   init_args:
     in_channels: 12
-    vocab_size: null
-    pad_idx: null
     d_model: 256
     nhead: 8
     num_encoder_layers: 4
