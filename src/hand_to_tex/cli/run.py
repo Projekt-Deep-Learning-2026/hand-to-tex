@@ -1,34 +1,31 @@
 import os
-from importlib import import_module
+from functools import lru_cache
 
 import torch
-from lightning.pytorch.cli import LightningCLI
+from lightning.pytorch.cli import LightningArgumentParser, LightningCLI
 
 from hand_to_tex.datasets.datamodule import HMELightningDataModule
-from hand_to_tex.models.components.base import BaseDecoderModel
 from hand_to_tex.models.lit_module import HMELightningModule
 from hand_to_tex.utils import LatexVocab, logger
 
 
 class HandToTexCLI(LightningCLI):
-    def before_instantiate_classes(self):
+    def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
 
+        parser.link_arguments(
+            source="model.vocab_path",
+            target="model.model.init_args.vocab_size",
+            compute_fn=self._vocab_size,
+        )
+        parser.link_arguments(
+            source="model.vocab_path",
+            target="model.model.init_args.pad_idx",
+            compute_fn=self._pad_idx,
+        )
+
+    def before_instantiate_classes(self):
         torch.set_float32_matmul_precision("high")
         os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
-
-        cfg = getattr(self, "config", {})
-
-        if not (model_cfg := cfg.get("model")):
-            raise ValueError("Expected `model` section in config")
-        elif not isinstance(model_cfg, dict):
-            raise ValueError(
-                f"Expected `model` section of config to be a dict, received {type(cfg['model'])}"
-            )
-
-        model_instance = self._create_model_instance(config=model_cfg)
-
-        self.instantiate_kwargs = getattr(self, "instantiate_kwargs", {})
-        self.instantiate_kwargs["model"] = model_instance
 
     def before_fit(self):
         try:
@@ -39,29 +36,17 @@ class HandToTexCLI(LightningCLI):
             pass
 
     @staticmethod
-    def _create_model_instance(config: dict) -> BaseDecoderModel:
+    @lru_cache(maxsize=1)
+    def _vocab(vocab_path: str) -> LatexVocab:
+        return LatexVocab.load(path=vocab_path)
 
-        if not (class_path := config.get("class_path")):
-            raise ValueError("Expected model configuration to have a `class_path` parameter")
-        elif not (model_args := config.get("init_args")):
-            raise ValueError("Expected model configuration to have a `init_class` section")
-        elif not isinstance(model_args, dict):
-            raise ValueError(
-                f"Expected model.init_args to be a `dict` instance, received {type(model_args)}"
-            )
-        if not (vocab_path := config.get("vocab_path")):
-            raise ValueError("Expected model configuration to have a `vocab_path` parameter")
+    @classmethod
+    def _pad_idx(cls, vocab_path: str) -> int:
+        return cls._vocab(vocab_path).PAD
 
-        vocab = LatexVocab.load(path=vocab_path)
-        model_args["vocab_size"] = len(vocab)
-        model_args["pad_idx"] = vocab.PAD
-
-        module_name, class_name = class_path.rsplit(".", 1)
-        mod = import_module(module_name)
-        ModelClass = getattr(mod, class_name)
-        model_instance: BaseDecoderModel = ModelClass(**model_args)
-
-        return model_instance
+    @classmethod
+    def _vocab_size(cls, vocab_path: str) -> int:
+        return len(cls._vocab(vocab_path))
 
 
 def main():
