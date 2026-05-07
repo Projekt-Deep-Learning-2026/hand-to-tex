@@ -47,7 +47,7 @@ def _predict_expression(
     with torch.inference_mode():
         generated_tokens = model.generate(src=features_batched, src_lengths=lengths)
 
-    return model._to_expr(generated_tokens[0]).replace(" ", "")
+    return "".join(model.vocab.decode_tensor(generated_tokens[0]))
 
 
 def _draw_ink(ax: Axes, ink: InkData) -> None:

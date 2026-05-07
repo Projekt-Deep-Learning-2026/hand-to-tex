@@ -67,5 +67,8 @@ class PositionalEncoding(nn.Module):
         Tensor
             Positionalized tensor of shape `(B, 1, D)`.
         """
-        x = x + self.pe[:, step : step + 1, :]
+        step_tensor = torch.tensor([step], dtype=torch.long, device=x.device)
+        pe_step = torch.index_select(self.pe.squeeze(0), dim=0, index=step_tensor).unsqueeze(0)
+
+        x = x + pe_step
         return self.dropout(x)

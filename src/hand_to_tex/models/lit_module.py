@@ -16,7 +16,6 @@ from hand_to_tex.types import (
     BatchedFeatures,
     BatchedTokens,
     FeatureLengths,
-    Tokens,
 )
 from hand_to_tex.utils import LatexVocab
 
@@ -189,8 +188,8 @@ class HMELightningModule(pl.LightningModule):
         padded_ft, ft_lengths, _, _ = batch
         generated_ts = self.generate(padded_ft, ft_lengths)
 
-        predicted_txt = [self._to_expr(ts) for ts in generated_ts]
-        expected_txt = [self._to_expr(ts) for ts in expected]
+        predicted_txt = [" ".join(self.vocab.decode_tensor(ts)) for ts in generated_ts]
+        expected_txt = [" ".join(self.vocab.decode_tensor(ts)) for ts in expected]
 
         metrics.update(predicted_txt, expected_txt)
 
@@ -400,20 +399,6 @@ class HMELightningModule(pl.LightningModule):
                 "interval": "step",
             },
         }
-
-    def _to_expr(self, tokens: Tokens) -> str:
-        token_ids = tokens.tolist()
-        expr = []
-        for t_id in token_ids:
-            match t_id:
-                case self.vocab.EOS:
-                    break
-                case self.vocab.PAD | self.vocab.SOS | self.vocab.UNK:
-                    continue
-                case _:
-                    expr.append(self.vocab.decode(t_id))
-
-        return " ".join(expr)
 
     def configure_model(self) -> None:
         """Load pretrained weights from a checkpoint file.
