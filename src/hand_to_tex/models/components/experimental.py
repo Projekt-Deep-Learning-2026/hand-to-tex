@@ -246,13 +246,13 @@ class ExperimentalTransformer(BaseDecoderModel):
     @torch.inference_mode()
     def generate(
         self,
-        src: Tensor,
-        src_lengths: Tensor,
+        src,
+        src_lengths,
         *,
-        sos_idx: int,
-        eos_idx: int,
-        max_len: int,
-    ) -> Tensor:
+        sos_idx,
+        eos_idx,
+        max_len,
+    ):
 
         batch_size = src.size(0)
         device = src.device

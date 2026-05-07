@@ -5,8 +5,8 @@ import torch
 from lightning.pytorch.cli import LightningCLI
 
 from hand_to_tex.datasets.datamodule import HMELightningDataModule
+from hand_to_tex.models.components.base import BaseDecoderModel
 from hand_to_tex.models.lit_module import HMELightningModule
-from hand_to_tex.types import BaseDecoderModel
 from hand_to_tex.utils import LatexVocab, logger
 
 
