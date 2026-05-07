@@ -1,17 +1,11 @@
+# lightning.pytorch==2.6.1
 seed_everything: 42
-
-# ============================================================================ #
-# ================================ TRAINER =================================== #
 trainer:
-  
-  # Training device specification
   accelerator: cpu
   strategy: auto
   devices: auto
   num_nodes: 1
   precision: bf16-mixed
-
-  # Logger configuration, currently using Weights&Biases
   logger:
   - class_path: lightning.pytorch.loggers.WandbLogger
     init_args:
@@ -48,11 +42,7 @@ trainer:
       sync_tensorboard: null
       monitor_gym: null
       settings: null
-
-  # ================================ CALLBACKS =============================== #
   callbacks:
-
-  # Checkpoint callback - specify checkpoints directory, template for file
   - class_path: lightning.pytorch.callbacks.ModelCheckpoint
     init_args:
       dirpath: checkpoints/
@@ -70,8 +60,6 @@ trainer:
       every_n_epochs: 5
       save_on_train_epoch_end: null
       enable_version_counter: true
-    
-    # Early stopping - specify which metric to use, patience, min progress 
   - class_path: lightning.pytorch.callbacks.EarlyStopping
     init_args:
       monitor: val/TER
@@ -85,15 +73,11 @@ trainer:
       divergence_threshold: null
       check_on_train_epoch_end: null
       log_rank_zero_only: false
-
-  # LearningRateMonitor
   - class_path: lightning.pytorch.callbacks.LearningRateMonitor
     init_args:
       logging_interval: step
       log_momentum: false
       log_weight_decay: false
-
-  # Progress bar - customize color, font
   - class_path: lightning.pytorch.callbacks.RichProgressBar
     init_args:
       refresh_rate: 100
@@ -110,9 +94,6 @@ trainer:
         metrics_text_delimiter: ' '
         metrics_format: .3f
       console_kwargs: null
-  
-  # ========================================================================== #
-  # Rest of the trainer parameters 
   fast_dev_run: false
   max_epochs: 50
   min_epochs: 20
@@ -147,19 +128,8 @@ trainer:
   default_root_dir: null
   enable_autolog_hparams: true
   model_registry: null
-
-# ============================================================================ #
-# =============================== MODEL ====================================== #
 model:
-  # Lightning module params
-  vocab_path: &vocab_path data/assets/vocab.json
-  pretrained_model_path: null
-  max_generate_len: 150
-  lr: 0.0003
-  label_smoothing: 0.1
-  weight_decay: 0.0001
-
-  # Params for the model which lightning module uses
+  vocab_path: data/assets/vocab.json
   model:
     class_path: hand_to_tex.models.components.ExperimentalTransformer
     init_args:
@@ -170,20 +140,22 @@ model:
       num_decoder_layers: 4
       dim_feedforward: 1024
       dropout: 0.1
-
-
-# ============================================================================ #
-# ================================ DATA ====================================== #
+  pretrained_model_path: null
+  max_generate_len: 150
+  lr: 0.0003
+  label_smoothing: 0.1
+  weight_decay: 0.0001
 data:
   root: data/sample
-  vocab_path: *vocab_path
+  vocab_path: data/assets/vocab.json
   processed: true
   batch_size: 256
   num_workers: 7
   pin_memory: true
   min_len: 7
-
+  max_len: null
 optimizer: null
 lr_scheduler: null
 ckpt_path: null
+verbose: true
 weights_only: null
