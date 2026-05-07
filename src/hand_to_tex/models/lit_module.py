@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Literal
 
 import lightning.pytorch as pl
@@ -19,7 +18,7 @@ from hand_to_tex.types import (
     FeatureLengths,
     Tokens,
 )
-from hand_to_tex.utils import LatexVocab, logger
+from hand_to_tex.utils import LatexVocab
 
 
 class HMELightningModule(pl.LightningModule):
@@ -46,7 +45,7 @@ class HMELightningModule(pl.LightningModule):
         vocab_path
             Path to the vocabulary file used for token encoding and decoding.
         pretrained_model_path
-            Optional path to a checkpoint with pretrained weights.
+            Optional path to a file with pretrained weights.
         model
             Instance of `BaseDecoderModel` to be used in the module
         max_generate_len
@@ -60,6 +59,7 @@ class HMELightningModule(pl.LightningModule):
         """
         super().__init__()
 
+        self.pretrained_model_path = pretrained_model_path
         self.vocab = LatexVocab.load(vocab_path)
         self.model = model
         self.max_generate_len = max_generate_len
@@ -69,8 +69,6 @@ class HMELightningModule(pl.LightningModule):
             ignore_index=self.vocab.PAD,
             label_smoothing=label_smoothing,
         )
-        if pretrained_model_path is not None:
-            self._load_pretrained_model(pretrained_model_path=pretrained_model_path)
 
         metrics = MetricCollection(
             {
@@ -417,27 +415,15 @@ class HMELightningModule(pl.LightningModule):
 
         return " ".join(expr)
 
-    def _load_pretrained_model(self, pretrained_model_path: str, strict: bool = True):
+    def configure_model(self) -> None:
         """Load pretrained weights from a checkpoint file.
-
-        Parameters
-        ----------
-        pretrained_model_path:
-            Path to a checkpoint file containing a state dict.
-        strict:
-            Whether to require an exact key match when loading weights.
-        """
-        try:
-            pth = Path(pretrained_model_path)
-            pretrained_model = torch.load(
-                pth, map_location=lambda storage, loc: storage, weights_only=False
+        Look at the hyperparam - `pretrained_model_path`, and load weights from the
+        file it specifies"""
+        if self.pretrained_model_path is not None:
+            state_dict = torch.load(
+                self.pretrained_model_path,
+                map_location=self.device,
+                weights_only=True,
             )
 
-            if (state_dict := pretrained_model.get("state_dict")) is None:
-                logger.warning(f"Couldn't find `state_dict` in {pretrained_model_path}")
-            else:
-                state_clean = {k.replace("._orig_mod", ""): v for k, v in state_dict.items()}
-
-                self.load_state_dict(state_dict=state_clean, strict=strict)
-        except Exception as e:
-            raise e
+            self.model.load_state_dict(state_dict=state_dict, strict=False)
