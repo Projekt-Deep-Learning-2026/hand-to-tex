@@ -12,7 +12,7 @@ from hand_to_tex.datasets.dataset import _HMEDatasetBase
 from hand_to_tex.datasets.ink_data import InkData
 from hand_to_tex.models.components import (
     ExperimentalTransformer,
-    ExperimentalTransformerKVCache,
+    Model,
 )
 from hand_to_tex.models.lit_module import HMELightningModule
 from hand_to_tex.utils import LatexVocab, logger
@@ -158,7 +158,7 @@ def _load_hparams(ckpt_path: Path) -> dict:
 
 def _build_model(vocab: LatexVocab, hparams: dict):
     use_kvcache = hparams.get("use_kvcache", False)
-    model_cls = ExperimentalTransformerKVCache if use_kvcache else ExperimentalTransformer
+    model_cls = Model if use_kvcache else ExperimentalTransformer
     return model_cls(
         in_channels=hparams.get("in_channels", 12),
         vocab_size=len(vocab),

@@ -14,7 +14,9 @@ from torch import Tensor
 
 from hand_to_tex.datasets.dataset import _HMEDatasetBase
 from hand_to_tex.datasets.ink_data import InkData
-from hand_to_tex.models.components import ExperimentalTransformerKVCache
+from hand_to_tex.models.components.exp_kvcache_demo import (
+    ExperimentalTransformerKVCacheDemo as Model,
+)
 from hand_to_tex.models.lit_module import HMELightningModule
 from hand_to_tex.utils import LatexVocab, logger
 
@@ -22,7 +24,7 @@ from hand_to_tex.utils import LatexVocab, logger
 class HTTEncoderOnnx(nn.Module):
     """ONNX-friendly encoder that avoids Transformer MHA reshape pitfalls."""
 
-    def __init__(self, model: ExperimentalTransformerKVCache) -> None:
+    def __init__(self, model: Model) -> None:
         super().__init__()
         self.model = model
 
@@ -87,7 +89,7 @@ class HTTEncoderOnnx(nn.Module):
 class HTTDecoderOnnx(nn.Module):
     """ONNX-friendly decoder using custom attention and dynamic lengths."""
 
-    def __init__(self, model: ExperimentalTransformerKVCache) -> None:
+    def __init__(self, model: Model) -> None:
         super().__init__()
         self.model = model
 
@@ -187,7 +189,7 @@ class HTTDecoderOnnx(nn.Module):
 class HTTDecoderStepOnnx(nn.Module):
     """ONNX-friendly cached decoder step with self-attention KV reuse."""
 
-    def __init__(self, model: ExperimentalTransformerKVCache) -> None:
+    def __init__(self, model: Model) -> None:
         super().__init__()
         self.model = model
 
@@ -302,7 +304,7 @@ def _infer_in_channels(hparams: dict, state_dict: dict) -> int:
 
 def _build_kvcache_model(vocab: LatexVocab, hparams: dict, state_dict: dict):
     in_channels = _infer_in_channels(hparams, state_dict)
-    return ExperimentalTransformerKVCache(
+    return Model(
         in_channels=in_channels,
         vocab_size=len(vocab),
         pad_idx=vocab.PAD,
