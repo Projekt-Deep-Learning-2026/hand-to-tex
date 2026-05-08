@@ -9,6 +9,7 @@ import numpy as np
 import onnxruntime as ort
 import torch
 import torch.nn as nn
+from onnxruntime.quantization import QuantType, quantize_dynamic
 from torch import Tensor
 
 from hand_to_tex.datasets.dataset import _HMEDatasetBase
@@ -438,6 +439,15 @@ def _fit_features(features: Tensor, in_channels: int) -> Tensor:
     return features
 
 
+def _quantize_onnx(src_path: Path, dst_path: Path) -> None:
+    quantize_dynamic(
+        model_input=str(src_path),
+        model_output=str(dst_path),
+        weight_type=QuantType.QInt8,
+    )
+    logger.info(f"Quantized ONNX model saved to {dst_path}")
+
+
 def _onnx_generate_cached(
     session: ort.InferenceSession,
     mem_k: np.ndarray,
@@ -574,6 +584,11 @@ def main() -> None:
         default=None,
         help="Max generation length override (defaults to checkpoint value)",
     )
+    parser.add_argument(
+        "--quantize",
+        action="store_true",
+        help="Export INT8 quantized ONNX models and use them for inference",
+    )
 
     args = parser.parse_args()
 
@@ -610,14 +625,24 @@ def main() -> None:
     decoder_path = ckpt_path.with_name(f"{ckpt_path.stem}_decoder_step.onnx")
     _export_onnx(module, encoder_path, decoder_path, in_channels)
 
+    encoder_eval_path = encoder_path
+    decoder_eval_path = decoder_path
+    if args.quantize:
+        encoder_q_path = ckpt_path.with_name(f"{ckpt_path.stem}_encoder_int8.onnx")
+        decoder_q_path = ckpt_path.with_name(f"{ckpt_path.stem}_decoder_step_int8.onnx")
+        _quantize_onnx(encoder_path, encoder_q_path)
+        _quantize_onnx(decoder_path, decoder_q_path)
+        encoder_eval_path = encoder_q_path
+        decoder_eval_path = decoder_q_path
+
     st = time.time()
 
     _run_inkml_eval(
         inkml_files,
         vocab,
         in_channels,
-        encoder_path,
-        decoder_path,
+        encoder_eval_path,
+        decoder_eval_path,
         max_len,
         num_layers,
         num_heads,
@@ -633,5 +658,8 @@ if __name__ == "__main__":
     main()
 
 # TODO
-# refactor demo
-# refactor components (improve inheritance in experimental model components)
+# 1. Refactor komponentow w models, popraw inheritance itd.
+# 2. zapisuj onnx do foldera z plikami encoder.onnx, decodex.onnx
+# 3. popraw demo - ma też służyć jako benchmark, który można będzie wtedy wywalić, ma obsługiwać onnx
+# 4. popraw export, ma nie zależeć od wybranego modelu, class_path ma się ładować z ckpt jesli się da, ma zależeć tylko od implementacji BaseDecoderModel
+# 5. zacznij pracować nad stroną w JS

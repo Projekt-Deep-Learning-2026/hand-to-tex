@@ -241,73 +241,35 @@ class ExperimentalTransformerKVCache(BaseDecoderModel):
 
         return self.fc_out(output)
 
-    # def encode(self, src: Tensor, src_lengths: Tensor) -> tuple[Tensor, Tensor]:
-    #     """Encode source features into memory for autoregressive decoding.
+    def encode(self, src: Tensor, src_lengths: Tensor) -> tuple[Tensor, Tensor]:
+        """Encode source features into memory for autoregressive decoding.
 
-    #     Parameters
-    #     ----------
-    #     src:
-    #         Source feature tensor `(B, T_src, C)`.
-    #     src_lengths:
-    #         Valid source lengths `(B,)` before convolutional downsampling.
+        Parameters
+        ----------
+        src:
+            Source feature tensor `(B, T_src, C)`.
+        src_lengths:
+            Valid source lengths `(B,)` before convolutional downsampling.
 
-    #     Returns
-    #     -------
-    #     tuple[Tensor, Tensor]
-    #         - `memory`: encoder output `(B, T_src', D)`
-    #         - `src_key_padding_mask`: boolean mask `(B, T_src')`
-    #     """
-    #     src_conv = src.transpose(1, 2)
-
-    #     src_features = self.input_proj(src_conv).transpose(1, 2)
-
-    #     new_src_lengths = self._calc_downsampled_lengths(src_lengths)
-
-    #     src_emb = self.src_pe(src_features)
-
-    #     src_key_padding_mask = self._get_padding_mask(new_src_lengths, src_features.size(1))
-
-    #     memory = self.transformer.encoder(src_emb, src_key_padding_mask=src_key_padding_mask)
-
-    #     return memory, src_key_padding_mask
-
-    def encode(self, src: Tensor, src_lengths: Tensor):
-        # 1. Obliczenie cech przez CNN (wymiar sekwencji drastycznie spada)
+        Returns
+        -------
+        tuple[Tensor, Tensor]
+            - `memory`: encoder output `(B, T_src', D)`
+            - `src_key_padding_mask`: boolean mask `(B, T_src')`
+        """
         src_conv = src.transpose(1, 2)
-        src_features = self.input_proj(src_conv).transpose(1, 2)
-
-        # =================================================================
-        # SOTA ONNX EXPORT FIX: Dynamiczny Masking (CumSum Trick)
-        # Omija użycie torch.arange(), co blokuje wypiekanie wymiarów w Reshape!
-        # =================================================================
-        if torch.onnx.is_in_onnx_export():
-            # Zakładamy, że CNN redukuje sekwencję 4-krotnie (dwie warstwy MaxPool1d(2))
-            downsampled_lengths = src_lengths // 4
-
-            # KROK 1: ones_like dziedziczy kształt bez podawania liczb całkowitych
-            # Tworzymy tensor jedynek o rozmiarze [Batch, Dynamic_Seq]
-            ones = torch.ones_like(src_features[:, :, 0], dtype=torch.long)
-
-            # KROK 2: cumsum płynnie zamienia [1, 1, 1...] na [1, 2, 3...]
-            # Odejmujemy 1, aby otrzymać [0, 1, 2...] dokładnie tak jak z arange!
-            steps = torch.cumsum(ones, dim=1) - 1
-
-            # KROK 3: Porównanie w pełni tensorowe (100% kompatybilności z ONNX)
-            mem_mask = steps >= downsampled_lengths.unsqueeze(1)
-        else:
-            # Standardowy, szybki tryb PyTorch do treningu / inference na GPU
-            max_len = src_features.size(1)
-            mem_mask = self._get_padding_mask(src_lengths, max_len)
-        # =================================================================
 
         src_features = self.input_proj(src_conv).transpose(1, 2)
+
+        new_src_lengths = self._calc_downsampled_lengths(src_lengths)
+
         src_emb = self.src_pe(src_features)
 
-        # Warstwa Atencji otrzyma maskę o symbolicznym kształcie, więc
-        # zmuszona będzie wyeksportować w pełni dynamiczny graf!
-        memory = self.transformer.encoder(src_emb, src_key_padding_mask=mem_mask)
+        src_key_padding_mask = self._get_padding_mask(new_src_lengths, src_features.size(1))
 
-        return memory, mem_mask
+        memory = self.transformer.encoder(src_emb, src_key_padding_mask=src_key_padding_mask)
+
+        return memory, src_key_padding_mask
 
     def decode(self, tgt: Tensor, memory: Tensor, memory_key_padding_mask: Tensor) -> Tensor:
         """Decode a target prefix given encoder memory.

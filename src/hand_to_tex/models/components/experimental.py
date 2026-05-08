@@ -6,6 +6,7 @@ from torch import Tensor
 
 from hand_to_tex.models.components.base import BaseDecoderModel
 from hand_to_tex.models.components.positional_encoding import PositionalEncoding
+from hand_to_tex.types import BatchedFeatures, BatchedTokens, FeatureLengths
 
 
 class ExperimentalTransformer(BaseDecoderModel):
@@ -135,22 +136,24 @@ class ExperimentalTransformer(BaseDecoderModel):
         """Create a decoder causal mask where future positions are blocked."""
         return nn.Transformer.generate_square_subsequent_mask(seq_len, device=device).bool()
 
-    def forward(self, src: Tensor, src_lengths: Tensor, tgt: Tensor) -> Tensor:
+    def forward(
+        self, src: BatchedFeatures, src_lengths: FeatureLengths, tgt: BatchedTokens
+    ) -> Tensor:
         """Run the full teacher-forced transformer pass.
 
         Parameters
         ----------
         src:
-            Source feature tensor `(B, T_src, C)`.
+            Source feature tensor `(B, T_src, F)`.
         src_lengths:
             Valid source lengths `(B,)` before convolutional downsampling.
         tgt:
-            Target token ids `(B, T_tgt)` used as decoder input.
+            Target token ids `(B, max_L)` used as decoder input.
 
         Returns
         -------
         Tensor
-            Decoder logits `(B, T_tgt, vocab_size)`.
+            Decoder logits `(B, max_L, vocab_size)`.
         """
         src_conv = src.transpose(1, 2)
         src_features = self.input_proj(src_conv).transpose(1, 2)
@@ -180,7 +183,7 @@ class ExperimentalTransformer(BaseDecoderModel):
 
         return self.fc_out(output)
 
-    def encode(self, src: Tensor, src_lengths: Tensor) -> tuple[Tensor, Tensor]:
+    def encode(self, src: BatchedFeatures, src_lengths: FeatureLengths) -> tuple[Tensor, Tensor]:
         """Encode source features into memory for autoregressive decoding.
 
         Parameters
@@ -210,7 +213,7 @@ class ExperimentalTransformer(BaseDecoderModel):
 
         return memory, src_key_padding_mask
 
-    def decode(self, tgt: Tensor, memory: Tensor, memory_key_padding_mask: Tensor) -> Tensor:
+    def decode(self, tgt: BatchedTokens, memory: Tensor, memory_key_padding_mask: Tensor) -> Tensor:
         """Decode a target prefix given encoder memory.
 
         Parameters
