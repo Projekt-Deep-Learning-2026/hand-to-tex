@@ -5,15 +5,17 @@ from abc import ABC, abstractmethod
 import torch.nn as nn
 from torch import Tensor
 
+from hand_to_tex.types import BatchedFeatures, FeatureLengths
+
 
 class BaseDecoderModel(nn.Module, ABC):
-    """Base interface for handwriting-to-LaTeX models with autoregressive generate()."""
+    """Base interface for handwriting-to-LaTeX models with implemented generate() method."""
 
     @abstractmethod
     def generate(
         self,
-        src: Tensor,
-        src_lengths: Tensor,
+        src: BatchedFeatures,
+        src_lengths: FeatureLengths,
         *,
         sos_idx: int,
         eos_idx: int,
@@ -23,15 +25,15 @@ class BaseDecoderModel(nn.Module, ABC):
 
         Parameters
         ----------
-        src:
+        src
             Input feature tensor.
-        src_lengths:
+        src_lengths
             Lengths of the input sequences.
-        sos_idx:
+        sos_idx
             Start-of-sequence token id.
-        eos_idx:
+        eos_idx
             End-of-sequence token id.
-        max_len:
+        max_len
             Maximum generated sequence length.
         """
 

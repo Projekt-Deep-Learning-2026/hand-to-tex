@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Literal
 
 import lightning.pytorch as pl
@@ -12,7 +11,14 @@ from torchmetrics import MeanMetric, MetricCollection
 from torchmetrics.text import CharErrorRate, WordErrorRate
 
 from hand_to_tex.models.components import BaseDecoderModel
-from hand_to_tex.utils import LatexVocab, logger
+from hand_to_tex.types import (
+    Batch,
+    BatchedFeatures,
+    BatchedTokens,
+    FeatureLengths,
+    Tokens,
+)
+from hand_to_tex.utils import LatexVocab
 
 
 class HMELightningModule(pl.LightningModule):
@@ -36,33 +42,24 @@ class HMELightningModule(pl.LightningModule):
 
         Parameters
         ----------
-        vocab_path:
+        vocab_path
             Path to the vocabulary file used for token encoding and decoding.
-        pretrained_model_path:
-            Optional path to a checkpoint with pretrained weights.
-        d_model:
-            Transformer hidden size.
-        nhead:
-            Number of attention heads in the transformer.
-        num_encoder_layers:
-            Number of encoder layers.
-        num_decoder_layers:
-            Number of decoder layers.
-        dim_feedforward:
-            Size of the feedforward layer inside transformer blocks.
-        dropout:
-            Dropout probability used in the transformer.
-        max_generate_len:
+        pretrained_model_path
+            Optional path to a file with pretrained weights.
+        model
+            Instance of `BaseDecoderModel` to be used in the module
+        max_generate_len
             Maximum length of generated token sequences.
-        lr:
+        lr
             Learning rate used by the optimizer and scheduler.
-        label_smoothing:
+        label_smoothing
             Label smoothing value used in cross-entropy loss.
-        weight_decay:
+        weight_decay
             Weight decay applied to selected optimizer parameters.
         """
         super().__init__()
 
+        self.pretrained_model_path = pretrained_model_path
         self.vocab = LatexVocab.load(vocab_path)
         self.model = model
         self.max_generate_len = max_generate_len
@@ -72,8 +69,6 @@ class HMELightningModule(pl.LightningModule):
             ignore_index=self.vocab.PAD,
             label_smoothing=label_smoothing,
         )
-        if pretrained_model_path is not None:
-            self._load_pretrained_model(pretrained_model_path=pretrained_model_path)
 
         metrics = MetricCollection(
             {
@@ -89,9 +84,9 @@ class HMELightningModule(pl.LightningModule):
         self.validation_samples = []
         self.test_samples = []
 
-        self.save_hyperparameters(ignore=["model", "vocab"])
+        self.save_hyperparameters(ignore=["model", "vocab", "pretrained_model_path"])
 
-    def forward(self, src: Tensor, src_lengths: Tensor, tgt: Tensor):
+    def forward(self, src: BatchedFeatures, src_lengths: FeatureLengths, tgt: BatchedTokens):
         """Run a forward pass through the transformer.
 
         Parameters
@@ -111,7 +106,7 @@ class HMELightningModule(pl.LightningModule):
         return self.model(src=src, src_lengths=src_lengths, tgt=tgt)
 
     @torch.inference_mode()
-    def generate(self, src: Tensor, src_lengths: Tensor) -> Tensor:
+    def generate(self, src: BatchedFeatures, src_lengths: FeatureLengths) -> Tensor:
         """Generate token sequences from input features.
 
         Parameters
@@ -134,9 +129,7 @@ class HMELightningModule(pl.LightningModule):
             max_len=self.max_generate_len,
         )
 
-    def _shared_step(
-        self, batch: tuple[Tensor, Tensor, Tensor, Tensor]
-    ) -> tuple[Tensor, Tensor, Tensor]:
+    def _shared_step(self, batch: Batch) -> tuple[Tensor, Tensor, Tensor]:
         """Compute the model output and loss for a batch.
 
         Parameters
@@ -162,7 +155,7 @@ class HMELightningModule(pl.LightningModule):
 
     def _eval_step(
         self,
-        batch: tuple[Tensor, Tensor, Tensor, Tensor],
+        batch: Batch,
         batch_idx: int,
         stage: Literal["val", "test"],
         metrics: MetricCollection,
@@ -227,7 +220,7 @@ class HMELightningModule(pl.LightningModule):
 
         return loss
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch: Batch, batch_idx: int):
         """Run one training step.
 
         Parameters
@@ -246,7 +239,7 @@ class HMELightningModule(pl.LightningModule):
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         return loss
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch: Batch, batch_idx: int):
         """Run one validation step and collect example predictions.
 
         Parameters
@@ -270,7 +263,7 @@ class HMELightningModule(pl.LightningModule):
             sample_store=self.validation_samples,
         )
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch: Batch, batch_idx: int):
         """Run one test step and collect example predictions.
 
         Parameters
@@ -408,7 +401,7 @@ class HMELightningModule(pl.LightningModule):
             },
         }
 
-    def _to_expr(self, tokens: Tensor) -> str:
+    def _to_expr(self, tokens: Tokens) -> str:
         token_ids = tokens.tolist()
         expr = []
         for t_id in token_ids:
@@ -422,27 +415,15 @@ class HMELightningModule(pl.LightningModule):
 
         return " ".join(expr)
 
-    def _load_pretrained_model(self, pretrained_model_path: str, strict: bool = True):
+    def configure_model(self) -> None:
         """Load pretrained weights from a checkpoint file.
-
-        Parameters
-        ----------
-        pretrained_model_path:
-            Path to a checkpoint file containing a state dict.
-        strict:
-            Whether to require an exact key match when loading weights.
-        """
-        try:
-            pth = Path(pretrained_model_path)
-            pretrained_model = torch.load(
-                pth, map_location=lambda storage, loc: storage, weights_only=False
+        Look at the hyperparam - `pretrained_model_path`, and load weights from the
+        file it specifies"""
+        if self.pretrained_model_path is not None:
+            state_dict = torch.load(
+                self.pretrained_model_path,
+                map_location=self.device,
+                weights_only=True,
             )
 
-            if (state_dict := pretrained_model.get("state_dict")) is None:
-                logger.warning(f"Couldn't find `state_dict` in {pretrained_model_path}")
-            else:
-                state_clean = {k.replace("._orig_mod", ""): v for k, v in state_dict.items()}
-
-                self.load_state_dict(state_dict=state_clean, strict=strict)
-        except Exception as e:
-            raise e
+            self.model.load_state_dict(state_dict=state_dict, strict=False)

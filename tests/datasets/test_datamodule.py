@@ -72,14 +72,3 @@ class TestDataModuleLifecycle:
             dm.val_dataloader()
         with pytest.raises(ValueError):
             dm.test_dataloader()
-
-    def test_predict_dataloader_is_not_implemented(self, preprocessed_pt_root: Path):
-        dm = HMELightningDataModule(
-            root=str(preprocessed_pt_root),
-            processed=True,
-            batch_size=2,
-            num_workers=0,
-            pin_memory=False,
-        )
-        with pytest.raises(NotImplementedError):
-            dm.predict_dataloader()

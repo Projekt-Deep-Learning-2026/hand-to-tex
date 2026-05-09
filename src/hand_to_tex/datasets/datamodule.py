@@ -13,7 +13,7 @@ class HMELightningDataModule(pl.LightningDataModule):
     def __init__(
         self,
         root: str = "data",
-        vocab_path: Path | None = None,
+        vocab_path: str | None = None,
         processed: bool = True,
         batch_size: int = 32,
         num_workers: int = 4,
@@ -107,6 +107,3 @@ class HMELightningDataModule(pl.LightningDataModule):
             raise ValueError("Testing dataloader factory should've been initialised by now")
 
         return self._test_dataloader
-
-    def predict_dataloader(self):
-        raise NotImplementedError
