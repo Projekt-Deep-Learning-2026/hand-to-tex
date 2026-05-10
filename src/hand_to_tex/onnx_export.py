@@ -1,30 +1,25 @@
 from __future__ import annotations
 
 import math
-import time
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-import onnxruntime as ort
 import torch
 import torch.nn as nn
 from onnxruntime.quantization import QuantType, quantize_dynamic
 from torch import Tensor
 
-from hand_to_tex.datasets.dataset import _HMEDatasetBase
-from hand_to_tex.datasets.ink_data import InkData
 from hand_to_tex.models.components.base import BaseDecoderModel
 from hand_to_tex.models.lit_module import HMELightningModule
 from hand_to_tex.utils import LatexVocab, logger
 from hand_to_tex.utils.export_helpers import (
-    collect_inkml_files,
     import_model_class,
     load_checkpoint,
     load_lightning_module,
     resolve_config_path,
     resolve_model_spec,
 )
+from hand_to_tex.utils.inference import onnx_batch_inference
 
 
 def _require_kvcache_model(model: BaseDecoderModel) -> Any:
@@ -298,122 +293,6 @@ def _quantize_onnx(src_path: Path, dst_path: Path) -> None:
     logger.info(f"Quantized ONNX model saved to {dst_path}")
 
 
-def _onnx_generate_cached(
-    session: ort.InferenceSession,
-    mem_k: np.ndarray,
-    mem_v: np.ndarray,
-    mem_mask: np.ndarray,
-    *,
-    sos_idx: int,
-    eos_idx: int,
-    pad_idx: int,
-    max_len: int,
-    num_layers: int,
-    num_heads: int,
-    head_dim: int,
-) -> np.ndarray:
-    mem_k_np = mem_k.astype(np.float32, copy=False)
-    mem_v_np = mem_v.astype(np.float32, copy=False)
-    mem_mask_np = mem_mask.astype(np.bool_, copy=False)
-
-    batch_size = mem_k_np.shape[1]
-    tgt = np.full((batch_size, 1), sos_idx, dtype=np.int64)
-    unfinished = np.ones(batch_size, dtype=bool)
-    step = np.array([0], dtype=np.int64)
-
-    self_k = np.zeros((num_layers, batch_size, num_heads, 1, head_dim), dtype=np.float32)
-    self_v = np.zeros((num_layers, batch_size, num_heads, 1, head_dim), dtype=np.float32)
-
-    for _ in range(1, max_len):
-        logits, self_k, self_v = session.run(
-            ["logits", "self_k_out", "self_v_out"],
-            {
-                "tgt_last": tgt[:, -1:],
-                "mem_k": mem_k_np,
-                "mem_v": mem_v_np,
-                "mem_mask": mem_mask_np,
-                "step": step,
-                "self_k": self_k,
-                "self_v": self_v,
-            },
-        )
-
-        next_token = np.argmax(logits, axis=-1).astype(np.int64)
-        next_step = np.where(unfinished, next_token, pad_idx)
-        tgt = np.concatenate([tgt, next_step[:, None]], axis=1)
-        unfinished = np.logical_and(unfinished, next_token != eos_idx)
-
-        if not unfinished.any():
-            return tgt
-
-        step = step + 1
-
-    return tgt
-
-
-def _run_inkml_eval(
-    inkml_files: list[Path],
-    vocab: LatexVocab,
-    in_channels: int,
-    encoder_path: Path,
-    decoder_path: Path,
-    max_len: int,
-    num_layers: int,
-    num_heads: int,
-    head_dim: int,
-) -> None:
-    logger.info(f"Running inference on {len(inkml_files)} .inkml files")
-
-    encoder_session = ort.InferenceSession(str(encoder_path), providers=["CPUExecutionProvider"])
-    decoder_session = ort.InferenceSession(str(decoder_path), providers=["CPUExecutionProvider"])
-
-    for inkml_path in inkml_files:
-        ink = InkData.load(inkml_path)
-        features = _HMEDatasetBase.extract_features(ink)
-
-        if features.numel() == 0:
-            logger.warning(f"Skipping empty traces: {inkml_path.name}")
-            continue
-
-        features = torch.nan_to_num(features, nan=0.0, posinf=0.0, neginf=0.0)
-        features_batched = features.unsqueeze(0)
-        lengths = torch.tensor([features.size(0)], dtype=torch.long)
-
-        _memory, mem_mask, mem_k, mem_v = encoder_session.run(
-            ["memory", "mem_mask", "mem_k", "mem_v"],
-            {
-                "src": features_batched.detach().cpu().numpy().astype(np.float32),
-                "src_lengths": lengths.detach().cpu().numpy().astype(np.int64),
-            },
-        )
-
-        mem_mask = np.asarray(mem_mask)
-        mem_k = np.asarray(mem_k)
-        mem_v = np.asarray(mem_v)
-
-        generated_tokens = _onnx_generate_cached(
-            session=decoder_session,
-            mem_k=mem_k,
-            mem_v=mem_v,
-            mem_mask=mem_mask,
-            sos_idx=vocab.SOS,
-            eos_idx=vocab.EOS,
-            pad_idx=vocab.PAD,
-            max_len=max_len,
-            num_layers=num_layers,
-            num_heads=num_heads,
-            head_dim=head_dim,
-        )
-
-        predicted_tokens = vocab.decode_sequence(token_ids=generated_tokens[0].tolist())
-        expected_tokens = vocab.decode_sequence(vocab.encode_expr(ink.tex_norm))
-
-        logger.info("=" * 72)
-        logger.info(f"Sample:    {ink.sample_id}")
-        logger.info(f"Expected:  {' '.join(expected_tokens[1:-1])}")
-        logger.info(f"Predicted: {' '.join(predicted_tokens[1:-1])}")
-
-
 def export_onnx_from_ckpt(
     *,
     ckpt_path: Path,
@@ -424,11 +303,6 @@ def export_onnx_from_ckpt(
     config_path: Path | None = None,
 ) -> None:
     vocab = LatexVocab.load(vocab_path)
-
-    inkml_files = collect_inkml_files(test_input)
-    if not inkml_files:
-        logger.warning(f"No .inkml files found in {test_input}")
-        return
 
     hparams = load_checkpoint(ckpt_path)
     print(hparams)
@@ -471,12 +345,9 @@ def export_onnx_from_ckpt(
         encoder_eval_path = encoder_q_path
         decoder_eval_path = decoder_q_path
 
-    st = time.time()
-
-    _run_inkml_eval(
-        inkml_files,
-        vocab,
-        in_channels,
+    onnx_batch_inference(
+        test_input,
+        vocab_path,
         encoder_eval_path,
         decoder_eval_path,
         resolved_max_len,
@@ -484,7 +355,3 @@ def export_onnx_from_ckpt(
         num_heads,
         head_dim,
     )
-
-    en = time.time()
-
-    logger.info(f"Ran {len(inkml_files)} samples in {en - st}sec")
