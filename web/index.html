@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo: Rozpoznawanie Ręcznego Pisma na TeX</title>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 600px;
+            margin: 2rem auto;
+            line-height: 1.6;
+        }
+
+        .box {
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+            min-height: 50px;
+            font-size: 1.2rem;
+            color: #0056b3;
+        }
+
+        button {
+            padding: 10px 15px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Konwerter Pisma na LaTeX</h1>
+    <div class="box">
+        <p>Wgraj plik JSON zawierający ścieżki (traces) z punktami (x, y, t).</p>
+
+        <input type="file" id="jsonInput" accept=".json" />
+
+        <button id="runBtn" disabled>Ładowanie modeli (WASM)...</button>
+
+        <div id="result">Tutaj pojawi się rozpoznany równanie...</div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

@@ -10,6 +10,9 @@ __pycache__/
 data/*
 !data/assets/*
 
+# web data
+web/data/*
+
 # training
 checkpoint/*
 checkpoints/*
