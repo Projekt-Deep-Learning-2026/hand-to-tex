@@ -43,9 +43,6 @@ def onnx_batch_inference(
     encoder_path: Path,
     decoder_path: Path,
     max_len: int,
-    num_layers: int,
-    num_heads: int,
-    head_dim: int,
 ) -> None:
     inkml_files = gather_inkmls(directory=inkml_directory)
     vocab = LatexVocab.load(path=vocab_path)
@@ -91,9 +88,6 @@ def onnx_batch_inference(
             eos_idx=vocab.EOS,
             pad_idx=vocab.PAD,
             max_len=max_len,
-            num_layers=num_layers,
-            num_heads=num_heads,
-            head_dim=head_dim,
         )
 
         predicted_tokens = vocab.decode_sequence(token_ids=generated_tokens[0].tolist())
@@ -115,10 +109,18 @@ def _onnx_generate_cached(
     eos_idx: int,
     pad_idx: int,
     max_len: int,
-    num_layers: int,
-    num_heads: int,
-    head_dim: int,
 ) -> np.ndarray:
+
+    for inp in session.get_inputs():
+        if inp.name == "self_k":
+            shape = inp.shape
+            num_layers = shape[0]
+            num_heads = shape[2]
+            head_dim = shape[4]
+            break
+    else:
+        raise RuntimeError("No `self_k` in encoder graph")
+
     mem_k_np = mem_k.astype(np.float32, copy=False)
     mem_v_np = mem_v.astype(np.float32, copy=False)
     mem_mask_np = mem_mask.astype(np.bool_, copy=False)

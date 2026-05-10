@@ -321,11 +321,9 @@ def export_onnx_from_ckpt(
     decoder_layers = module.model.transformer.decoder.layers
     if not decoder_layers:
         raise RuntimeError("Decoder has no layers; cannot build cached ONNX decoder.")
-    num_layers = len(decoder_layers)
     num_heads = decoder_layers[0].self_attn.num_heads
     if module.model.d_model % num_heads != 0:
         raise ValueError("d_model must be divisible by num_heads for cached decoder export")
-    head_dim = module.model.d_model // num_heads
 
     resolved_max_len = module.max_generate_len if max_len is None else max_len
     if resolved_max_len < 2:
@@ -351,7 +349,4 @@ def export_onnx_from_ckpt(
         encoder_eval_path,
         decoder_eval_path,
         resolved_max_len,
-        num_layers,
-        num_heads,
-        head_dim,
     )
