@@ -2,7 +2,11 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 
+import onnxruntime as ort
 import torch.nn as nn
+
+from hand_to_tex.types import BatchedFeatures, FeatureLengths
+from hand_to_tex.utils import LatexVocab
 
 
 @dataclass
@@ -26,6 +30,18 @@ class OnnxExportable(ABC):
 
     @abstractmethod
     def get_onnx_export_configs(self, device: str = "cpu") -> list[OnnxExportConfiguration]:
+        pass
+
+    @abstractmethod
+    def run_onnx_inference(
+        self,
+        sessions: dict[str, ort.InferenceSession],
+        src_features: BatchedFeatures,
+        src_lengths: FeatureLengths,
+        vocab: LatexVocab,
+        max_len: int,
+    ) -> list[str]:
+        """Using provided onnx-runtime sessions perform inference on `src_features`"""
         pass
 
 

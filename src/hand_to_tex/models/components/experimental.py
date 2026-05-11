@@ -1,13 +1,16 @@
 import math
 
+import numpy as np
 import torch
 import torch.nn as nn
+from onnxruntime.capi.onnxruntime_inference_collection import InferenceSession
 from torch import Tensor
 
 from hand_to_tex.models.components.base import BaseDecoderModel
 from hand_to_tex.models.components.exportable import OnnxExportable, OnnxExportConfiguration
 from hand_to_tex.models.components.positional_encoding import PositionalEncoding
 from hand_to_tex.types import BatchedFeatures, BatchedTokens, FeatureLengths
+from hand_to_tex.utils.latex_vocab import LatexVocab
 
 
 class ExperimentalTransformer(BaseDecoderModel, OnnxExportable):
@@ -323,3 +326,45 @@ class ExperimentalTransformer(BaseDecoderModel, OnnxExportable):
             },
         )
         return [config]
+
+    def run_onnx_inference(
+        self,
+        sessions: dict[str, InferenceSession],
+        src_features: Tensor,
+        src_lengths: Tensor,
+        vocab: LatexVocab,
+        max_len: int,
+    ) -> list[str]:
+        session = sessions["model"]
+
+        batch_size = src_features.shape[0]
+        tgt = np.full((batch_size, 1), vocab.SOS, dtype=np.int16)
+
+        unfinished = np.ones(batch_size, dtype=bool)
+
+        src_np = src_features.detach().cpu().numpy().astype(np.float32)
+        src_len_np = src_lengths.detach().cpu().numpy().astype(np.int16)
+
+        for _ in range(1, max_len):
+            outputs = session.run(
+                None,
+                {"src": src_np, "src_lengths": src_len_np, "tgt": tgt},
+            )
+            logits = outputs[0]
+
+            token = np.argmax(logits[:, -1, :], axis=-1).astype(np.int16)  # type: ignore
+
+            next_step_tokens = np.where(unfinished, token, vocab.PAD)
+
+            tgt = np.concatenate([tgt, next_step_tokens[:, None]], axis=1)
+
+            unfinished = np.logical_and(unfinished, token != vocab.EOS)
+            if not unfinished.any():
+                break
+
+        results = []
+        for i in range(batch_size):
+            tokens = vocab.decode_sequence(token_ids=tgt[i].tolist())
+            results.append(tokens)
+
+        return results
