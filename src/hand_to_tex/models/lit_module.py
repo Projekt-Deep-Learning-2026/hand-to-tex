@@ -431,7 +431,7 @@ class HMELightningModule(pl.LightningModule):
             )
 
         created_paths = {}
-        os.mkdir(path=out_dir)
+        os.makedirs(name=out_dir, exist_ok=True)
 
         configs = self.model.get_onnx_export_configs(device=device)
         logger.info(f"Beginning export for: {', '.join(cfg.name for cfg in configs)}")
