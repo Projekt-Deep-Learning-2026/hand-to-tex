@@ -8,14 +8,16 @@ from lightning.pytorch.cli import instantiate_class
 from onnxruntime.quantization import QuantType, quantize_dynamic
 
 from hand_to_tex.models import HMELightningModule
+from hand_to_tex.models.components.exportable import OnnxExportable
 from hand_to_tex.utils import LatexVocab, logger
+from hand_to_tex.utils.inference import onnx_batch_inference
 
 
 def _load_lightning_module(
     ckpt_path: Path,
     config_path: Path,
     device: str = "cpu",
-) -> HMELightningModule:
+) -> tuple[HMELightningModule, LatexVocab]:
     """Create an `HMELightningModule` and load weights from a checkpoint.
 
     Parameters
@@ -56,7 +58,7 @@ def _load_lightning_module(
     )
 
     module.eval()
-    return module
+    return module, vocab
 
 
 def _quantize_onnx(src_path: Path, dst_path: Path) -> None:
@@ -102,10 +104,24 @@ def main() -> None:
     parser = _get_parser()
     args = parser.parse_args()
 
+    out_dir = Path("data/models/onnx/test")
     logger.info(f"Loading lightning module from ckpt={args.ckpt}, config={args.config}")
-    module = _load_lightning_module(ckpt_path=Path(args.ckpt), config_path=Path(args.config))
+    module, vocab = _load_lightning_module(ckpt_path=Path(args.ckpt), config_path=Path(args.config))
 
-    module.export_to_onnx(out_dir=Path("data/models/onnx/test"))
+    module.export_to_onnx(out_dir=out_dir)
+
+    if args.test_input:
+        assert isinstance(module.model, OnnxExportable)
+
+        logger.info(f"Test input provided. Preparing to run inference on: {args.test_input}")
+
+        onnx_batch_inference(
+            model_class=type(module.model),
+            inkml_directory=Path(args.test_input),
+            model_directory=out_dir,
+            vocab=vocab,
+            max_len=150,
+        )
 
 
 if __name__ == "__main__":

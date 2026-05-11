@@ -32,9 +32,10 @@ class OnnxExportable(ABC):
     def get_onnx_export_configs(self, device: str = "cpu") -> list[OnnxExportConfiguration]:
         pass
 
+    @classmethod
     @abstractmethod
     def run_onnx_inference(
-        self,
+        cls,
         sessions: dict[str, ort.InferenceSession],
         src_features: BatchedFeatures,
         src_lengths: FeatureLengths,

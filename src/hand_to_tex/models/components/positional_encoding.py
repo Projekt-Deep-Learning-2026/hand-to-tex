@@ -48,8 +48,9 @@ class PositionalEncoding(nn.Module):
         Tensor
             Tensor with positional information added, same shape as input.
         """
-        seq_len = x.size(1)
-        x = x + self.pe[:, :seq_len, :]
+        # seq_len = x.size(1)
+        # x = x + self.pe[:, :seq_len, :]
+        x = x + self.pe.narrow(1, 0, x.shape[1])
         return self.dropout(x)
 
     def forward_step(self, x: Tensor, step: int) -> Tensor:

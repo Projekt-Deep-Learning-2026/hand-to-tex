@@ -3,14 +3,14 @@ import math
 import numpy as np
 import torch
 import torch.nn as nn
-from onnxruntime.capi.onnxruntime_inference_collection import InferenceSession
+from onnxruntime import InferenceSession
 from torch import Tensor
 
 from hand_to_tex.models.components.base import BaseDecoderModel
 from hand_to_tex.models.components.exportable import OnnxExportable, OnnxExportConfiguration
 from hand_to_tex.models.components.positional_encoding import PositionalEncoding
 from hand_to_tex.types import BatchedFeatures, BatchedTokens, FeatureLengths
-from hand_to_tex.utils.latex_vocab import LatexVocab
+from hand_to_tex.utils import LatexVocab
 
 
 class ExperimentalTransformer(BaseDecoderModel, OnnxExportable):
@@ -92,24 +92,6 @@ class ExperimentalTransformer(BaseDecoderModel, OnnxExportable):
 
         self.fc_out = nn.Linear(d_model, vocab_size)
 
-    def _get_padding_mask(self, lengths: Tensor, max_len: int) -> Tensor:
-        """Build a boolean key-padding mask from sequence lengths.
-
-        Parameters
-        ----------
-        lengths:
-            Tensor `(B,)` with valid sequence lengths.
-        max_len:
-            Maximum sequence length in the padded batch.
-
-        Returns
-        -------
-        Tensor
-            Boolean mask `(B, max_len)` where `True` marks padding positions.
-        """
-        steps = torch.arange(max_len, device=lengths.device).unsqueeze(0)
-        return steps >= lengths.unsqueeze(1)
-
     @staticmethod
     def _conv1d_output_lengths(lengths: Tensor, conv: nn.Conv1d) -> Tensor:
         """Compute output lengths after applying a Conv1d layer.
@@ -137,10 +119,22 @@ class ExperimentalTransformer(BaseDecoderModel, OnnxExportable):
         conv2_len = self._conv1d_output_lengths(conv1_len, self.conv2)
         return conv2_len.clamp_min(0)
 
+    def _get_padding_mask(self, lengths: Tensor, reference_tensor: Tensor) -> Tensor:
+        """Build a boolean key-padding mask tracking dynamic shape."""
+        T = reference_tensor.shape[1]
+
+        steps = torch.cumsum(torch.ones((1, T), device=lengths.device, dtype=torch.long), dim=1) - 1
+        return steps >= lengths.unsqueeze(1)
+
     @staticmethod
-    def _build_causal_mask(seq_len: int, device: torch.device) -> Tensor:
-        """Create a decoder causal mask where future positions are blocked."""
-        return nn.Transformer.generate_square_subsequent_mask(seq_len, device=device).bool()
+    def _build_causal_mask(reference_tensor: Tensor) -> Tensor:
+        """Create a decoder causal mask tracking dynamic shape."""
+        T = reference_tensor.shape[1]
+
+        steps = (
+            torch.cumsum(torch.ones(T, device=reference_tensor.device, dtype=torch.long), dim=0) - 1
+        )
+        return steps.unsqueeze(0) > steps.unsqueeze(1)
 
     def forward(
         self, src: BatchedFeatures, src_lengths: FeatureLengths, tgt: BatchedTokens
@@ -167,20 +161,22 @@ class ExperimentalTransformer(BaseDecoderModel, OnnxExportable):
         src_emb = self.src_pe(src_features)
 
         new_src_lengths = self._calc_downsampled_lengths(src_lengths)
-        src_key_padding_mask = self._get_padding_mask(new_src_lengths, src_features.size(1))
+        # src_key_padding_mask = self._get_padding_mask(new_src_lengths, src_features.size(1))
+        src_key_padding_mask = self._get_padding_mask(new_src_lengths, src_features)
 
         tgt_emb = self.tgt_pe(self.tgt_tok_emb(tgt) * math.sqrt(self.d_model))
         tgt_key_padding_mask = tgt == self.pad_idx
 
-        tgt_seq_len = tgt.size(1)
-        tgt_causal_mask = self._build_causal_mask(tgt_seq_len, tgt.device)
+        # tgt_seq_len = tgt.size(1)
+        # tgt_causal_mask = self._build_causal_mask(tgt_seq_len, tgt.device)
+        tgt_causal_mask = self._build_causal_mask(tgt)
 
         output = self.transformer(
             src=src_emb,
             tgt=tgt_emb,
             src_mask=None,
             tgt_mask=tgt_causal_mask,
-            tgt_is_causal=True,
+            # tgt_is_causal=True,
             memory_mask=None,
             src_key_padding_mask=src_key_padding_mask,
             tgt_key_padding_mask=tgt_key_padding_mask,
@@ -213,7 +209,8 @@ class ExperimentalTransformer(BaseDecoderModel, OnnxExportable):
 
         src_emb = self.src_pe(src_features)
 
-        src_key_padding_mask = self._get_padding_mask(new_src_lengths, src_features.size(1))
+        # src_key_padding_mask = self._get_padding_mask(new_src_lengths, src_features.size(1))
+        src_key_padding_mask = self._get_padding_mask(new_src_lengths, src_features)
 
         memory = self.transformer.encoder(src_emb, src_key_padding_mask=src_key_padding_mask)
 
@@ -239,14 +236,15 @@ class ExperimentalTransformer(BaseDecoderModel, OnnxExportable):
 
         tgt_emb = self.tgt_pe(self.tgt_tok_emb(tgt) * math.sqrt(self.d_model))
 
-        tgt_causal_mask = self._build_causal_mask(tgt.size(1), tgt.device)
+        # tgt_causal_mask = self._build_causal_mask(tgt.size(1), tgt.device)
+        tgt_causal_mask = self._build_causal_mask(tgt)
         tgt_key_padding_mask = tgt == self.pad_idx
 
         out = self.transformer.decoder(
             tgt=tgt_emb,
             memory=memory,
             tgt_mask=tgt_causal_mask,
-            tgt_is_causal=True,
+            # tgt_is_causal=True,
             tgt_key_padding_mask=tgt_key_padding_mask,
             memory_key_padding_mask=memory_key_padding_mask,
         )
@@ -300,71 +298,88 @@ class ExperimentalTransformer(BaseDecoderModel, OnnxExportable):
         return tgt
 
     def dummy_inputs(self, device: str) -> tuple[BatchedFeatures, FeatureLengths, BatchedTokens]:
-        batch_size = 1
-        src_len = 32
+        batch_size = 2
+        src_len = 48
         tgt_len = 20
 
         src = torch.zeros((batch_size, src_len, self.in_channels), device=device)
-        src_lengths = torch.tensor([src_len], dtype=torch.long, device=device)
+        src_lengths = torch.tensor([src_len, src_len - 10], dtype=torch.long, device=device)
         tgt = torch.zeros((batch_size, tgt_len), dtype=torch.long, device=device)
 
         return (src, src_lengths, tgt)
 
     def get_onnx_export_configs(self, device: str = "cpu") -> list[OnnxExportConfiguration]:
+        """Definiuje eksport do dwóch osobnych plików ONNX."""
+        src, src_lengths, tgt = self.dummy_inputs(device=device)
 
-        config = OnnxExportConfiguration(
-            name="model",
-            export_fun=self.forward,
-            dummy_inputs=self.dummy_inputs(device=device),
-            input_names=["src", "src_lengths", "tgt"],
-            output_names=["logits"],
+        encoder_cfg = OnnxExportConfiguration(
+            name="encoder",
+            export_fun=self.encode,
+            dummy_inputs=(src, src_lengths),
+            input_names=["src", "src_lengths"],
+            output_names=["memory", "mem_mask"],
             dynamic_axes={
                 "src": {0: "batch", 1: "src_len"},
                 "src_lengths": {0: "batch"},
+                "memory": {0: "batch", 1: "src_len_downsampled"},
+                "mem_mask": {0: "batch", 1: "src_len_downsampled"},
+            },
+        )
+
+        with torch.no_grad():
+            memory, mem_mask = self.encode(src, src_lengths)
+
+        decoder_cfg = OnnxExportConfiguration(
+            name="decoder",
+            export_fun=self.decode,
+            dummy_inputs=(tgt, memory, mem_mask),
+            input_names=["tgt", "memory", "mem_mask"],
+            output_names=["logits"],
+            dynamic_axes={
                 "tgt": {0: "batch", 1: "tgt_len"},
+                "memory": {0: "batch", 1: "src_len_downsampled"},
+                "mem_mask": {0: "batch", 1: "src_len_downsampled"},
                 "logits": {0: "batch", 1: "tgt_len"},
             },
         )
-        return [config]
 
+        return [encoder_cfg, decoder_cfg]
+
+    @classmethod
     def run_onnx_inference(
-        self,
+        cls,
         sessions: dict[str, InferenceSession],
         src_features: Tensor,
         src_lengths: Tensor,
         vocab: LatexVocab,
         max_len: int,
     ) -> list[str]:
-        session = sessions["model"]
-
-        batch_size = src_features.shape[0]
-        tgt = np.full((batch_size, 1), vocab.SOS, dtype=np.int16)
-
-        unfinished = np.ones(batch_size, dtype=bool)
+        enc_sess = sessions["encoder"]
+        dec_sess = sessions["decoder"]
 
         src_np = src_features.detach().cpu().numpy().astype(np.float32)
-        src_len_np = src_lengths.detach().cpu().numpy().astype(np.int16)
+        src_len_np = src_lengths.detach().cpu().numpy().astype(np.int64)
+
+        memory, mem_mask = enc_sess.run(
+            ["memory", "mem_mask"], {"src": src_np, "src_lengths": src_len_np}
+        )
+
+        batch_size = src_features.shape[0]
+        tgt = np.full((batch_size, 1), vocab.SOS, dtype=np.int64)
+        unfinished = np.ones(batch_size, dtype=bool)
 
         for _ in range(1, max_len):
-            outputs = session.run(
-                None,
-                {"src": src_np, "src_lengths": src_len_np, "tgt": tgt},
-            )
+            outputs = dec_sess.run(["logits"], {"tgt": tgt, "memory": memory, "mem_mask": mem_mask})
             logits = outputs[0]
 
-            token = np.argmax(logits[:, -1, :], axis=-1).astype(np.int16)  # type: ignore
-
+            token = np.argmax(logits[:, -1, :], axis=-1).astype(np.int64)  # type:ignore
             next_step_tokens = np.where(unfinished, token, vocab.PAD)
 
             tgt = np.concatenate([tgt, next_step_tokens[:, None]], axis=1)
-
             unfinished = np.logical_and(unfinished, token != vocab.EOS)
+
             if not unfinished.any():
                 break
 
-        results = []
-        for i in range(batch_size):
-            tokens = vocab.decode_sequence(token_ids=tgt[i].tolist())
-            results.append(tokens)
-
-        return results
+        results = [vocab.decode_sequence(tgt[i].tolist()) for i in range(batch_size)]
+        return results[0]

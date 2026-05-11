@@ -449,7 +449,6 @@ class HMELightningModule(pl.LightningModule):
                 output_names=cfg.output_names,
                 dynamic_axes=cfg.dynamic_axes,
                 opset_version=17,
-                do_constant_folding=True,
             )
             logger.info(f"Succesfully exported {cfg.name} -> {str(path)}")
 
