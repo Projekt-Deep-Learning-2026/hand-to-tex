@@ -5,11 +5,12 @@ import torch.nn as nn
 from torch import Tensor
 
 from hand_to_tex.models.components.base import BaseDecoderModel
+from hand_to_tex.models.components.exportable import OnnxExportable, OnnxExportConfiguration
 from hand_to_tex.models.components.positional_encoding import PositionalEncoding
 from hand_to_tex.types import BatchedFeatures, BatchedTokens, FeatureLengths
 
 
-class ExperimentalTransformer(BaseDecoderModel):
+class ExperimentalTransformer(BaseDecoderModel, OnnxExportable):
     """Sequence-to-sequence transformer for handwriting feature decoding.
 
     Source inputs are expected as `(B, T_src, in_channels)` float features.
@@ -52,6 +53,8 @@ class ExperimentalTransformer(BaseDecoderModel):
             Dropout probability used in transformer and positional layers.
         """
         super().__init__()
+
+        self.in_channels = in_channels
         self.pad_idx = pad_idx
         self.d_model = d_model
 
@@ -292,3 +295,31 @@ class ExperimentalTransformer(BaseDecoderModel):
                 break
 
         return tgt
+
+    def dummy_inputs(self, device: str) -> tuple[BatchedFeatures, FeatureLengths, BatchedTokens]:
+        batch_size = 1
+        src_len = 32
+        tgt_len = 20
+
+        src = torch.zeros((batch_size, src_len, self.in_channels), device=device)
+        src_lengths = torch.tensor([src_len], dtype=torch.long, device=device)
+        tgt = torch.zeros((batch_size, tgt_len), dtype=torch.long, device=device)
+
+        return (src, src_lengths, tgt)
+
+    def get_onnx_export_configs(self, device: str = "cpu") -> list[OnnxExportConfiguration]:
+
+        config = OnnxExportConfiguration(
+            name="model",
+            export_fun=self.forward,
+            dummy_inputs=self.dummy_inputs(device=device),
+            input_names=["src", "src_lengths", "tgt"],
+            output_names=["logits"],
+            dynamic_axes={
+                "src": {0: "batch", 1: "src_len"},
+                "src_lengths": {0: "batch"},
+                "tgt": {0: "batch", 1: "tgt_len"},
+                "logits": {0: "batch", 1: "tgt_len"},
+            },
+        )
+        return [config]

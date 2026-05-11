@@ -5,6 +5,8 @@ import torch.nn as nn
 from torch import Tensor
 
 from hand_to_tex.models.components.experimental import ExperimentalTransformer
+
+# from hand_to_tex.models.components.exportable import OnnxExportable
 from hand_to_tex.types import (
     BatchedFeatures,
     BatchedTokens,

@@ -23,5 +23,5 @@ class OnnxExportable(ABC):
     """
 
     @abstractmethod
-    def get_onnx_export_configs(self) -> list[OnnxExportConfiguration]:
-        raise NotImplementedError
+    def get_onnx_export_configs(self, device: str = "cpu") -> list[OnnxExportConfiguration]:
+        pass
