@@ -5,6 +5,8 @@ import json
 import re
 from pathlib import Path
 
+from hand_to_tex.types import Tokens
+
 
 @dataclasses.dataclass(frozen=True)
 class LatexVocab:
@@ -202,6 +204,21 @@ class LatexVocab:
             List of token strings. Unknown IDs are decoded as `<UNK>`.
         """
         return [self.decode(t_id) for t_id in token_ids]
+
+    def decode_tensor(self, tokens: Tokens) -> list[str]:
+        """Convert tokens tensor to a list of TeX tokens, ignore special tokens SOS, EOS, PAD, UNK"""
+        token_ids = tokens.tolist()
+        expr = []
+        for t_id in token_ids:
+            match t_id:
+                case self.EOS:
+                    break
+                case self.PAD | self.SOS | self.UNK:
+                    continue
+                case _:
+                    expr.append(self.decode(t_id))
+
+        return expr
 
     def __len__(self) -> int:
         return len(self._encode)

@@ -48,8 +48,9 @@ class PositionalEncoding(nn.Module):
         Tensor
             Tensor with positional information added, same shape as input.
         """
-        seq_len = x.size(1)
-        x = x + self.pe[:, :seq_len, :]
+        # seq_len = x.size(1)
+        # x = x + self.pe[:, :seq_len, :]
+        x = x + self.pe.narrow(1, 0, x.shape[1])
         return self.dropout(x)
 
     def forward_step(self, x: Tensor, step: int) -> Tensor:
@@ -67,5 +68,8 @@ class PositionalEncoding(nn.Module):
         Tensor
             Positionalized tensor of shape `(B, 1, D)`.
         """
-        x = x + self.pe[:, step : step + 1, :]
+        step_tensor = torch.tensor([step], dtype=torch.long, device=x.device)
+        pe_step = torch.index_select(self.pe.squeeze(0), dim=0, index=step_tensor).unsqueeze(0)
+
+        x = x + pe_step
         return self.dropout(x)

@@ -10,21 +10,11 @@ from matplotlib.figure import Figure
 
 from hand_to_tex.datasets.dataset import _HMEDatasetBase
 from hand_to_tex.datasets.ink_data import InkData
-from hand_to_tex.models.components import (
-    ExperimentalTransformer,
-    ExperimentalTransformerKVCache,
-)
+from hand_to_tex.models.components import ExperimentalTransformer, ExperimentalTransformerKVCache
 from hand_to_tex.models.lit_module import HMELightningModule
 from hand_to_tex.utils import LatexVocab, logger
+from hand_to_tex.utils.inference import gather_inkmls, onnx_batch_inference
 from hand_to_tex.utils.interactive import HMEDrawingApp
-
-
-def _collect_inkml_files(input_path: Path) -> list[Path]:
-    if input_path.is_file():
-        return [input_path]
-    if input_path.is_dir():
-        return list(input_path.rglob("*.inkml"))
-    raise FileNotFoundError(f"Invalid input path: {input_path}")
 
 
 def _predict_expression(
@@ -47,7 +37,7 @@ def _predict_expression(
     with torch.inference_mode():
         generated_tokens = model.generate(src=features_batched, src_lengths=lengths)
 
-    return model._to_expr(generated_tokens[0]).replace(" ", "")
+    return "".join(model.vocab.decode_tensor(generated_tokens[0]))
 
 
 def _draw_ink(ax: Axes, ink: InkData) -> None:
@@ -181,7 +171,7 @@ def run_batch_inference(
 ):
     input_path = Path(input_path_str)
 
-    inkml_files = sorted(_collect_inkml_files(input_path))
+    inkml_files = gather_inkmls(input_path)
 
     if not inkml_files:
         logger.warning(f"No .inkml files found in {input_path}")
@@ -232,9 +222,14 @@ def run_batch_inference(
         _show_or_save_figure(fig, save_img, out_filename)
 
 
-def main():
+def get_args():
     parser = argparse.ArgumentParser(description="HME Demo: Batch Inference or Interactive App")
-    parser.add_argument("--ckpt", type=str, required=True, help="checkpoint .ckpt file path")
+    parser.add_argument(
+        "--onnx",
+        type=str,
+        help="Path to direcory that has decoder.onnx and encoder.onnx files, overwrites --ckpt",
+    )
+    parser.add_argument("--ckpt", type=str, help="checkpoint .ckpt file path")
     parser.add_argument("--input", type=str, help="Path to .inkml file or directory")
     parser.add_argument(
         "--interactive", action="store_true", help="Launch interactive drawing canvas"
@@ -251,44 +246,64 @@ def main():
     parser.add_argument("--save-img", action="store_true", help="Save the visualization to a .png")
     args = parser.parse_args()
 
+    if not args.ckpt and not args.onnx:
+        parser.error("to run inference, --onnx or --ckpt needs to be added")
+
     if args.samples_per_figure < 1:
         parser.error("--samples-per-figure must be at least 1.")
 
     if not args.interactive and not args.input:
         parser.error("--input is required unless --interactive is used.")
 
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-    elif torch.backends.mps.is_available():
-        device = torch.device("mps")
+    return args
+
+
+def main():
+    args = get_args()
+
+    if args.onnx:
+        directory = Path(args.onnx)
+        onnx_batch_inference(
+            inkml_directory=Path(args.input),
+            vocab_path=Path(args.vocab),
+            encoder_path=directory / "encoder.onnx",
+            decoder_path=directory / "decoder.onnx",
+            max_len=150,
+        )
+
     else:
-        device = torch.device("cpu")
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+        elif torch.backends.mps.is_available():
+            device = torch.device("mps")
+        else:
+            device = torch.device("cpu")
 
-    logger.info(f"Initialising inference on: {device}")
-    logger.info(f"Loading model weights from: {args.ckpt}")
+        logger.info(f"Initialising inference on: {device}")
+        logger.info(f"Loading model weights from: {args.ckpt}")
 
-    vocab = LatexVocab.load(args.vocab)
-    hparams = _load_hparams(Path(args.ckpt))
-    decoder_model = _build_model(vocab, hparams)
+        vocab = LatexVocab.load(args.vocab)
+        hparams = _load_hparams(Path(args.ckpt))
+        decoder_model = _build_model(vocab, hparams)
 
-    model = HMELightningModule.load_from_checkpoint(
-        checkpoint_path=args.ckpt,
-        vocab_path=args.vocab,
-        model=decoder_model,
-        map_location=device,
-        pretrained_model_path=None,
-        weights_only=True,
-    )
-    model.eval()
-    model.to(device)
+        model = HMELightningModule.load_from_checkpoint(
+            checkpoint_path=args.ckpt,
+            vocab_path=args.vocab,
+            model=decoder_model,
+            map_location=device,
+            pretrained_model_path=None,
+            weights_only=True,
+        )
+        model.eval()
+        model.to(device)
 
-    if args.interactive:
-        logger.info("Launching interactive mode...")
-        root = tk.Tk()
-        _app = HMEDrawingApp(root, model, device)
-        root.mainloop()
-    else:
-        run_batch_inference(args.input, model, device, args.save_img, args.samples_per_figure)
+        if args.interactive:
+            logger.info("Launching interactive mode...")
+            root = tk.Tk()
+            _app = HMEDrawingApp(root, model, device)
+            root.mainloop()
+        else:
+            run_batch_inference(args.input, model, device, args.save_img, args.samples_per_figure)
 
 
 if __name__ == "__main__":

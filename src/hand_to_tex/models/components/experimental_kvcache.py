@@ -11,7 +11,7 @@ type LayerKVCache = dict[str, Tensor]
 type DecoderKVCache = dict[str, object]
 
 
-class ExperimentalTransformer(BaseDecoderModel):
+class ExperimentalTransformerKVCache(BaseDecoderModel):
     """Sequence-to-sequence transformer for handwriting feature decoding.
 
     Source inputs are expected as `(B, T_src, in_channels)` float features.
@@ -383,13 +383,13 @@ class ExperimentalTransformer(BaseDecoderModel):
         if tgt_last.dim() != 2 or tgt_last.size(1) != 1:
             raise ValueError("`tgt_last` must have shape (B, 1) for incremental decoding.")
 
-        step = int(cache["step"])
+        step = cache["step"]
         layer_caches = cache["layers"]
         if not isinstance(layer_caches, list):
             raise ValueError("Cache `layers` entry is malformed.")
 
         x = self.tgt_tok_emb(tgt_last) * math.sqrt(self.d_model)
-        x = self.tgt_pe.forward_step(x, step)
+        x = self.tgt_pe.forward_step(x, step)  # type: ignore
 
         decoder_layers = self.transformer.decoder.layers
 
@@ -453,7 +453,7 @@ class ExperimentalTransformer(BaseDecoderModel):
             x = self.transformer.decoder.norm(x)
 
         logits_last = self.fc_out(x)[:, -1, :]
-        cache["step"] = step + 1
+        cache["step"] = step + 1  # type: ignore
         return logits_last, cache
 
     @torch.inference_mode()

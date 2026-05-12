@@ -15,6 +15,10 @@ dependencies = [
     "jsonargparse[signatures]>=4.27.7",
     "rich>=10.2.2",
     "typing-extensions>=4.15.0",
+    "onnxruntime>=1.25.1",
+    "onnx>=1.21.0",
+    "onnxsim>=0.6.3",
+    "onnxscript>=0.1.0",
 ]
 
 [dependency-groups]
@@ -65,6 +69,7 @@ htt-demo = "scripts.demo:main"
 htt-init = "scripts.init:main"
 htt-benchmark = "scripts.benchmark_kvcache:main"
 htt-run = "hand_to_tex.cli.run:main"
+htt-export = "scripts.export:main"
 
 [tool.uv.sources]
 torch = [

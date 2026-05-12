@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from typing import Literal
 
 import lightning.pytorch as pl
@@ -6,19 +8,23 @@ import torch.nn as nn
 import torch.optim as optim
 import wandb
 from lightning.pytorch.loggers import WandbLogger
+from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from torch import Tensor
 from torchmetrics import MeanMetric, MetricCollection
 from torchmetrics.text import CharErrorRate, WordErrorRate
 
 from hand_to_tex.models.components import BaseDecoderModel
+from hand_to_tex.models.components.exportable import (
+    DynamicOnnxExportWrapper,
+    OnnxExportable,
+)
 from hand_to_tex.types import (
     Batch,
     BatchedFeatures,
     BatchedTokens,
     FeatureLengths,
-    Tokens,
 )
-from hand_to_tex.utils import LatexVocab
+from hand_to_tex.utils import LatexVocab, logger
 
 
 class HMELightningModule(pl.LightningModule):
@@ -189,8 +195,8 @@ class HMELightningModule(pl.LightningModule):
         padded_ft, ft_lengths, _, _ = batch
         generated_ts = self.generate(padded_ft, ft_lengths)
 
-        predicted_txt = [self._to_expr(ts) for ts in generated_ts]
-        expected_txt = [self._to_expr(ts) for ts in expected]
+        predicted_txt = [" ".join(self.vocab.decode_tensor(ts)) for ts in generated_ts]
+        expected_txt = [" ".join(self.vocab.decode_tensor(ts)) for ts in expected]
 
         metrics.update(predicted_txt, expected_txt)
 
@@ -340,7 +346,7 @@ class HMELightningModule(pl.LightningModule):
 
         checkpoint["state_dict"] = cleaned_state_dict
 
-    def configure_optimizers(self):
+    def configure_optimizers(self) -> OptimizerLRScheduler:
         """Create the optimizer and learning-rate scheduler.
 
         Returns
@@ -401,20 +407,6 @@ class HMELightningModule(pl.LightningModule):
             },
         }
 
-    def _to_expr(self, tokens: Tokens) -> str:
-        token_ids = tokens.tolist()
-        expr = []
-        for t_id in token_ids:
-            match t_id:
-                case self.vocab.EOS:
-                    break
-                case self.vocab.PAD | self.vocab.SOS | self.vocab.UNK:
-                    continue
-                case _:
-                    expr.append(self.vocab.decode(t_id))
-
-        return " ".join(expr)
-
     def configure_model(self) -> None:
         """Load pretrained weights from a checkpoint file.
         Look at the hyperparam - `pretrained_model_path`, and load weights from the
@@ -427,3 +419,39 @@ class HMELightningModule(pl.LightningModule):
             )
 
             self.model.load_state_dict(state_dict=state_dict, strict=False)
+
+    def export_to_onnx(self, out_dir: Path, device: str = "cpu") -> dict[str, Path]:
+        """Export current .module to `.onnx` format using its `OnnxExportable` contract"""
+
+        logger.info(f"Beginning onnx-export for {type(self.model).__name__}")
+        if not isinstance(self.model, OnnxExportable):
+            raise TypeError(
+                f"Model of type {type(self.model).__name__} cannot be exported through {type(self).__name__}"
+                "since it does not implement the `OnnxExportable` contract"
+            )
+
+        created_paths = {}
+        os.makedirs(name=out_dir, exist_ok=True)
+
+        configs = self.model.get_onnx_export_configs(device=device)
+        logger.info(f"Beginning export for: {', '.join(cfg.name for cfg in configs)}")
+        for cfg in configs:
+            logger.info(f"Exporting: {cfg.name}")
+
+            wrapper = DynamicOnnxExportWrapper(base=self.model, export_method=cfg.export_fun).eval()
+            path = out_dir / f"{cfg.name}.onnx"
+
+            torch.onnx.export(
+                wrapper,
+                cfg.dummy_inputs,
+                str(path),
+                input_names=cfg.input_names,
+                output_names=cfg.output_names,
+                dynamic_axes=cfg.dynamic_axes,
+                opset_version=17,
+            )
+            logger.info(f"Succesfully exported {cfg.name} -> {str(path)}")
+
+            created_paths[cfg.name] = path
+
+        return created_paths
