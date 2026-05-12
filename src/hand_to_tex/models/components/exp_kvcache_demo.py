@@ -3,6 +3,7 @@ import math
 import numpy as np
 import torch
 import torch.nn as nn
+from onnxruntime import InferenceSession
 from torch import Tensor
 from torch.nn.functional import scaled_dot_product_attention
 
@@ -307,13 +308,12 @@ class ExperimentalTransformerKVCacheDemo(ExperimentalTransformer, OnnxExportable
         return tgt
 
     def get_onnx_export_configs(self, device: str = "cpu") -> list[OnnxExportConfiguration]:
-        """Return configurations allowing DynamicOnnxExportWrapper to wrap inner logic."""
+
         dummy_src_len = 64
         dummy_tgt_len = 1
         dummy_cache_len = 1
-        in_channels = self.conv1.in_channels
 
-        src = torch.zeros((1, dummy_src_len, in_channels), dtype=torch.float32, device=device)
+        src = torch.zeros((1, dummy_src_len, self.in_channels), dtype=torch.float32, device=device)
         src_lengths = torch.tensor([dummy_src_len], dtype=torch.long, device=device)
         tgt_last = torch.full((1, dummy_tgt_len), self.pad_idx, dtype=torch.long, device=device)
 
@@ -335,11 +335,11 @@ class ExperimentalTransformerKVCacheDemo(ExperimentalTransformer, OnnxExportable
         )
 
         with torch.no_grad():
-            memory, mem_mask, mem_k, mem_v = self._export_encoder_forward(src, src_lengths)
+            _, mem_mask, mem_k, mem_v = self.encode_with_kv(src, src_lengths)
 
         enc_config = OnnxExportConfiguration(
             name="encoder",
-            export_fun=self._export_encoder_forward,
+            export_fun=self.encode_with_kv,
             dummy_inputs=(src, src_lengths),
             input_names=["src", "src_lengths"],
             output_names=["memory", "mem_mask", "mem_k", "mem_v"],
@@ -355,17 +355,26 @@ class ExperimentalTransformerKVCacheDemo(ExperimentalTransformer, OnnxExportable
 
         dec_config = OnnxExportConfiguration(
             name="decoder_step",
-            export_fun=self._export_decoder_step_forward,
-            dummy_inputs=(tgt_last, mem_k, mem_v, mem_mask, step, self_k, self_v),
-            input_names=["tgt_last", "mem_k", "mem_v", "mem_mask", "step", "self_k", "self_v"],
+            export_fun=self.decode_step,
+            dummy_inputs=(tgt_last, step, self_k, self_v, mem_k, mem_v, mem_mask),
+            input_names=[
+                "tgt_last",
+                "step",
+                "self_k",
+                "self_v",
+                "mem_k",
+                "mem_v",
+                "memory_key_padding_mask",
+            ],
             output_names=["logits", "self_k_out", "self_v_out"],
             dynamic_axes={
                 "tgt_last": {0: "batch"},
-                "mem_k": {1: "batch", 3: "src_len_down"},
-                "mem_v": {1: "batch", 3: "src_len_down"},
-                "mem_mask": {0: "batch", 1: "src_len_down"},
+                "step": {},
                 "self_k": {1: "batch", 3: "cache_len"},
                 "self_v": {1: "batch", 3: "cache_len"},
+                "mem_k": {1: "batch", 3: "src_len_down"},
+                "mem_v": {1: "batch", 3: "src_len_down"},
+                "memory_key_padding_mask": {0: "batch", 1: "src_len_down"},
                 "logits": {0: "batch"},
                 "self_k_out": {1: "batch", 3: "cache_len_out"},
                 "self_v_out": {1: "batch", 3: "cache_len_out"},
@@ -377,10 +386,10 @@ class ExperimentalTransformerKVCacheDemo(ExperimentalTransformer, OnnxExportable
     @classmethod
     def run_onnx_inference(
         cls,
-        sessions,
-        src_features: "BatchedFeatures",
-        src_lengths: "FeatureLengths",
-        vocab: "LatexVocab",
+        sessions: dict[str, InferenceSession],
+        src_features: BatchedFeatures,
+        src_lengths: FeatureLengths,
+        vocab: LatexVocab,
         max_len: int,
     ) -> list[str]:
         """Using provided onnx-runtime sessions perform inference on `src_features`."""
@@ -420,15 +429,15 @@ class ExperimentalTransformerKVCacheDemo(ExperimentalTransformer, OnnxExportable
                 "tgt_last": tgt_last,
                 "mem_k": mem_k,
                 "mem_v": mem_v,
-                "mem_mask": mem_mask,
                 "step": step,
                 "self_k": self_k,
                 "self_v": self_v,
+                "memory_key_padding_mask": mem_mask,
             }
 
             logits, self_k, self_v = decoder_session.run(None, dec_inputs)
 
-            next_token = np.argmax(logits, axis=-1)
+            next_token = np.argmax(logits, axis=-1)  # type: ignore
             tgt[:, i] = np.where(unfinished_seqs, next_token, tgt[:, i])
 
             unfinished_seqs = unfinished_seqs & (next_token != vocab.EOS)
@@ -450,7 +459,6 @@ class ExperimentalTransformerKVCacheDemo(ExperimentalTransformer, OnnxExportable
                         continue
                     case _:
                         clean_seq.append(t)
-            print(clean_seq)
             results.append(vocab.decode_sequence(clean_seq))
 
         return results
