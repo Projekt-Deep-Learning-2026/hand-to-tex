@@ -161,7 +161,7 @@ model:
 
   # Params for the model which lightning module uses
   model:
-    class_path: hand_to_tex.models.components.ExperimentalTransformer
+    class_path: hand_to_tex.models.components.ExperimentalTransformerKVCacheDemo
     init_args:
       in_channels: 12
       d_model: 256

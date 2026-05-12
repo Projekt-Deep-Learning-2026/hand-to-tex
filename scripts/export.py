@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
 import yaml
@@ -87,6 +88,12 @@ def _get_parser() -> argparse.ArgumentParser:
         help="Path to a .inkml file or directory of .inkml files",
     )
     parser.add_argument(
+        "--out-dir",
+        type=str,
+        default="data/models/onnx/test",
+        help="Directory, where the exported model-directory will be created",
+    )
+    parser.add_argument(
         "--quantize",
         action="store_true",
         help="Export INT8 quantized ONNX models and use them for inference",
@@ -104,24 +111,45 @@ def main() -> None:
     parser = _get_parser()
     args = parser.parse_args()
 
-    out_dir = Path("data/models/onnx/test")
     logger.info(f"Loading lightning module from ckpt={args.ckpt}, config={args.config}")
     module, vocab = _load_lightning_module(ckpt_path=Path(args.ckpt), config_path=Path(args.config))
 
-    module.export_to_onnx(out_dir=out_dir)
+    assert isinstance(module.model, OnnxExportable)
+
+    out_dir = Path(args.out_dir)
+    test_dir = Path(args.test_input)
+    created_onnx_modules = module.export_to_onnx(out_dir=out_dir)
 
     if args.test_input:
-        assert isinstance(module.model, OnnxExportable)
-
         logger.info(f"Test input provided. Preparing to run inference on: {args.test_input}")
 
         onnx_batch_inference(
             model_class=type(module.model),
-            inkml_directory=Path(args.test_input),
+            inkml_directory=test_dir,
             model_directory=out_dir,
             vocab=vocab,
             max_len=150,
         )
+        logger.info(f"Model saved to: {out_dir}")
+
+    if args.quantize:
+        quant_out_dir = out_dir.with_name(f"{out_dir.name}-quantized")
+        os.makedirs(name=quant_out_dir, exist_ok=True)
+
+        for module_name, src_path in created_onnx_modules.items():
+            dst_path = quant_out_dir / f"{module_name}.onnx"
+            _quantize_onnx(src_path=src_path, dst_path=dst_path)
+
+        logger.info("Quantize flag provided, starting quantization and inference")
+
+        onnx_batch_inference(
+            model_class=type(module.model),
+            inkml_directory=Path(args.test_input),
+            model_directory=quant_out_dir,
+            vocab=vocab,
+            max_len=150,
+        )
+        logger.info(f"Model saved to: {quant_out_dir}")
 
 
 if __name__ == "__main__":

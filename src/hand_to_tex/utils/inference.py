@@ -81,4 +81,4 @@ def onnx_batch_inference(
         logger.info("=" * 72)
         logger.info(f"Sample:    {ink.sample_id}")
         logger.info(f"Expected:  {' '.join(expected_tokens[1:-1])}")
-        logger.info(f"Predicted: {' '.join(predicted_tokens[1:-1])}")
+        logger.info(f"Predicted: {' '.join(predicted_tokens[0][1:-1])}")
