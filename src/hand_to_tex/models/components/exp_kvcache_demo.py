@@ -1,12 +1,12 @@
 import math
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor
 
 from hand_to_tex.models.components.experimental import ExperimentalTransformer
-
-# from hand_to_tex.models.components.exportable import OnnxExportable
+from hand_to_tex.models.components.exportable import OnnxExportable, OnnxExportConfiguration
 from hand_to_tex.types import (
     BatchedFeatures,
     BatchedTokens,
@@ -15,9 +15,10 @@ from hand_to_tex.types import (
     LayerKVCache,
     TensorBool,
 )
+from hand_to_tex.utils import LatexVocab
 
 
-class ExperimentalTransformerKVCacheDemo(ExperimentalTransformer):
+class ExperimentalTransformerKVCacheDemo(ExperimentalTransformer, OnnxExportable):
     """Transformer variant with KV-cache decoding."""
 
     def __init__(
@@ -270,3 +271,284 @@ class ExperimentalTransformerKVCacheDemo(ExperimentalTransformer):
                 break
 
         return tgt
+
+    def _export_encoder_forward(
+        self, src: Tensor, src_lengths: Tensor
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        """Custom forward for ONNX encoder tracing without dynamic control flows."""
+        src_conv = src.transpose(1, 2)
+        src_features = self.input_proj(src_conv).transpose(1, 2)
+        src_emb = self.src_pe(src_features)
+
+        conv1_len = self._conv1d_output_lengths(src_lengths, self.conv1)
+        conv2_len = self._conv1d_output_lengths(conv1_len, self.conv2)
+        downsampled_lengths = conv2_len.clamp_min(0)
+
+        ones = torch.ones_like(src_features[:, :, 0], dtype=torch.long)
+        steps = torch.cumsum(ones, dim=1) - 1
+        mem_mask = steps >= downsampled_lengths.unsqueeze(1)
+
+        x = src_emb
+        for layer in self.transformer.encoder.layers:
+            if not layer.norm_first:
+                raise RuntimeError("ONNX encoder expects norm_first=True.")
+
+            sa_input = layer.norm1(x)
+            q_raw = self._project_q(layer.self_attn, sa_input)
+            k_raw, v_raw = self._project_kv(layer.self_attn, sa_input)
+
+            num_heads = layer.self_attn.num_heads
+            q = self._split_heads(q_raw, num_heads)
+            k = self._split_heads(k_raw, num_heads)
+            v = self._split_heads(v_raw, num_heads)
+
+            sa_out = self._scaled_dot_product_attention(
+                q=q,
+                k=k,
+                v=v,
+                out_proj=layer.self_attn.out_proj,
+                key_padding_mask=mem_mask,
+            )
+            x = x + layer.dropout1(sa_out)
+
+            ff_input = layer.norm2(x)
+            ff_out = layer.linear2(layer.dropout(layer.activation(layer.linear1(ff_input))))
+            x = x + layer.dropout2(ff_out)
+
+        if self.transformer.encoder.norm is not None:
+            x = self.transformer.encoder.norm(x)
+
+        memory = x
+        mem_k = []
+        mem_v = []
+        for layer in self.transformer.decoder.layers:
+            num_heads = layer.multihead_attn.num_heads
+            mem_k_raw, mem_v_raw = self._project_kv(layer.multihead_attn, memory)
+            mem_k.append(self._split_heads(mem_k_raw, num_heads))
+            mem_v.append(self._split_heads(mem_v_raw, num_heads))
+
+        return memory, mem_mask, torch.stack(mem_k, dim=0), torch.stack(mem_v, dim=0)
+
+    def _export_decoder_step_forward(
+        self,
+        tgt_last: Tensor,
+        mem_k: Tensor,
+        mem_v: Tensor,
+        mem_mask: Tensor,
+        step: Tensor,
+        self_k: Tensor,
+        self_v: Tensor,
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        """Custom forward for ONNX decoder incremental step tracing."""
+        x = self.tgt_tok_emb(tgt_last) * math.sqrt(self.d_model)
+
+        step_long = step.to(dtype=torch.long).reshape(1)
+        pe = self.tgt_pe.pe.squeeze(0)
+        pe_step = torch.index_select(pe, dim=0, index=step_long).unsqueeze(0)
+        x = x + pe_step
+        x = self.tgt_pe.dropout(x)
+
+        new_self_k = []
+        new_self_v = []
+
+        for layer_idx, layer in enumerate(self.transformer.decoder.layers):
+            if not layer.norm_first:
+                raise RuntimeError("ONNX decoder-step expects norm_first=True.")
+
+            k_prev = self_k[layer_idx]
+            v_prev = self_v[layer_idx]
+
+            sa_input = layer.norm1(x)
+            q_raw = self._project_q(layer.self_attn, sa_input)
+            k_new_raw, v_new_raw = self._project_kv(layer.self_attn, sa_input)
+
+            num_heads = layer.self_attn.num_heads
+            q = self._split_heads(q_raw, num_heads)
+            k_new = self._split_heads(k_new_raw, num_heads)
+            v_new = self._split_heads(v_new_raw, num_heads)
+
+            k_cat = torch.cat([k_prev, k_new], dim=2)
+            v_cat = torch.cat([v_prev, v_new], dim=2)
+
+            sa_out = self._scaled_dot_product_attention(
+                q=q,
+                k=k_cat,
+                v=v_cat,
+                out_proj=layer.self_attn.out_proj,
+            )
+            x = x + layer.dropout1(sa_out)
+
+            ca_input = layer.norm2(x)
+            q_cross_raw = self._project_q(layer.multihead_attn, ca_input)
+            q_cross = self._split_heads(q_cross_raw, num_heads)
+
+            ca_out = self._scaled_dot_product_attention(
+                q=q_cross,
+                k=mem_k[layer_idx],
+                v=mem_v[layer_idx],
+                out_proj=layer.multihead_attn.out_proj,
+                key_padding_mask=mem_mask,
+            )
+            x = x + layer.dropout2(ca_out)
+
+            ff_input = layer.norm3(x)
+            ff_out = layer.linear2(layer.dropout(layer.activation(layer.linear1(ff_input))))
+            x = x + layer.dropout3(ff_out)
+
+            new_self_k.append(k_cat)
+            new_self_v.append(v_cat)
+
+        if self.transformer.decoder.norm is not None:
+            x = self.transformer.decoder.norm(x)
+
+        logits = self.fc_out(x)[:, -1, :]
+        return logits, torch.stack(new_self_k, dim=0), torch.stack(new_self_v, dim=0)
+
+    def get_onnx_export_configs(self, device: str = "cpu") -> list[OnnxExportConfiguration]:
+        """Return configurations allowing DynamicOnnxExportWrapper to wrap inner logic."""
+        dummy_src_len = 64
+        dummy_tgt_len = 1
+        dummy_cache_len = 1
+        in_channels = self.conv1.in_channels
+
+        src = torch.zeros((1, dummy_src_len, in_channels), dtype=torch.float32, device=device)
+        src_lengths = torch.tensor([dummy_src_len], dtype=torch.long, device=device)
+        tgt_last = torch.full((1, dummy_tgt_len), self.pad_idx, dtype=torch.long, device=device)
+
+        step = torch.tensor([0], dtype=torch.long, device=device)
+
+        num_layers = len(self.transformer.decoder.layers)
+        num_heads = self.transformer.decoder.layers[0].self_attn.num_heads
+        head_dim = self.d_model // num_heads
+
+        self_k = torch.zeros(
+            (num_layers, 1, num_heads, dummy_cache_len, head_dim),
+            dtype=torch.float32,
+            device=device,
+        )
+        self_v = torch.zeros(
+            (num_layers, 1, num_heads, dummy_cache_len, head_dim),
+            dtype=torch.float32,
+            device=device,
+        )
+
+        with torch.no_grad():
+            memory, mem_mask, mem_k, mem_v = self._export_encoder_forward(src, src_lengths)
+
+        enc_config = OnnxExportConfiguration(
+            name="encoder",
+            export_fun=self._export_encoder_forward,
+            dummy_inputs=(src, src_lengths),
+            input_names=["src", "src_lengths"],
+            output_names=["memory", "mem_mask", "mem_k", "mem_v"],
+            dynamic_axes={
+                "src": {0: "batch", 1: "src_len"},
+                "src_lengths": {0: "batch"},
+                "memory": {0: "batch", 1: "src_len_down"},
+                "mem_mask": {0: "batch", 1: "src_len_down"},
+                "mem_k": {1: "batch", 3: "src_len_down"},
+                "mem_v": {1: "batch", 3: "src_len_down"},
+            },
+        )
+
+        dec_config = OnnxExportConfiguration(
+            name="decoder_step",
+            export_fun=self._export_decoder_step_forward,
+            dummy_inputs=(tgt_last, mem_k, mem_v, mem_mask, step, self_k, self_v),
+            input_names=["tgt_last", "mem_k", "mem_v", "mem_mask", "step", "self_k", "self_v"],
+            output_names=["logits", "self_k_out", "self_v_out"],
+            dynamic_axes={
+                "tgt_last": {0: "batch"},
+                "mem_k": {1: "batch", 3: "src_len_down"},
+                "mem_v": {1: "batch", 3: "src_len_down"},
+                "mem_mask": {0: "batch", 1: "src_len_down"},
+                "self_k": {1: "batch", 3: "cache_len"},
+                "self_v": {1: "batch", 3: "cache_len"},
+                "logits": {0: "batch"},
+                "self_k_out": {1: "batch", 3: "cache_len_out"},
+                "self_v_out": {1: "batch", 3: "cache_len_out"},
+            },
+        )
+
+        return [enc_config, dec_config]
+
+    @classmethod
+    def run_onnx_inference(
+        cls,
+        sessions,
+        src_features: "BatchedFeatures",
+        src_lengths: "FeatureLengths",
+        vocab: "LatexVocab",
+        max_len: int,
+    ) -> list[str]:
+        """Using provided onnx-runtime sessions perform inference on `src_features`."""
+
+        encoder_session = sessions["encoder"]
+        decoder_session = sessions["decoder_step"]
+
+        src = np.array(src_features)
+        lengths = np.array(src_lengths)
+
+        batch_size = src.shape[0]
+
+        enc_inputs = {
+            "src": src.astype(np.float32),
+            "src_lengths": lengths.astype(np.int64),
+        }
+        memory, mem_mask, mem_k, mem_v = encoder_session.run(None, enc_inputs)
+
+        num_layers = mem_k.shape[0]
+        num_heads = mem_k.shape[2]
+        head_dim = mem_k.shape[4]
+
+        self_k = np.zeros((num_layers, batch_size, num_heads, 0, head_dim), dtype=np.float32)
+        self_v = np.zeros((num_layers, batch_size, num_heads, 0, head_dim), dtype=np.float32)
+
+        tgt = np.full((batch_size, max_len), fill_value=vocab.PAD, dtype=np.int64)
+        tgt[:, 0] = vocab.SOS
+
+        unfinished_seqs = np.ones(batch_size, dtype=bool)
+
+        step = np.array([0], dtype=np.int64)
+
+        for i in range(1, max_len):
+            tgt_last = tgt[:, i - 1 : i]
+
+            dec_inputs = {
+                "tgt_last": tgt_last,
+                "mem_k": mem_k,
+                "mem_v": mem_v,
+                "mem_mask": mem_mask,
+                "step": step,
+                "self_k": self_k,
+                "self_v": self_v,
+            }
+
+            logits, self_k, self_v = decoder_session.run(None, dec_inputs)
+
+            next_token = np.argmax(logits, axis=-1)
+            tgt[:, i] = np.where(unfinished_seqs, next_token, tgt[:, i])
+
+            unfinished_seqs = unfinished_seqs & (next_token != vocab.EOS)
+
+            if not np.any(unfinished_seqs):
+                break
+
+            step[0] += 1
+
+        results = []
+        for seq in tgt:
+            clean_seq = []
+            for token in seq:
+                match t := int(token):
+                    case vocab.EOS:
+                        clean_seq.append(t)
+                        break
+                    case vocab.PAD:
+                        continue
+                    case _:
+                        clean_seq.append(t)
+            print(clean_seq)
+            results.append(vocab.decode_sequence(clean_seq))
+
+        return results
