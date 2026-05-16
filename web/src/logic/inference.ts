@@ -1,8 +1,5 @@
 import * as ort from 'onnxruntime-web';
 
-// Set WASM paths to CDN
-ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
-
 export interface InferenceFeatures {
     flatData: Float32Array;
     numPoints: number;
