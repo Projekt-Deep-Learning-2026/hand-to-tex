@@ -6,7 +6,7 @@ export interface InferenceFeatures {
     numFeatures: number;
 }
 
-export const VOCAB_URL = '/assets/vocab.json';
+export const VOCAB_URL = 'assets/vocab.json';
 export const ENCODER_URL = 'https://huggingface.co/m4jkiuwr/htt-mini/resolve/main/encoder.onnx?download=true';
 export const DECODER_URL = 'https://huggingface.co/m4jkiuwr/htt-mini/resolve/main/decoder_step.onnx?download=true';
 

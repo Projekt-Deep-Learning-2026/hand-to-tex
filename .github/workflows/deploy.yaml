@@ -3,7 +3,7 @@
 on:
     push:
         branches: ["web-inference"]
-    workflow_dispatch: 
+    workflow_dispatch:
 
 permissions:
     contents: read
@@ -45,7 +45,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'web/dist'
+          path: './web/dist'
 
       - name: Deploy to GitHub Pages
         id: deployment
