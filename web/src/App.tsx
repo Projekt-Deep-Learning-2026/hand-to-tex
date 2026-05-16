@@ -4,10 +4,6 @@ import 'katex/dist/katex.min.css';
 import './App.css';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Set up PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 import { useModel } from './hooks/useModel';
 import { DrawingCanvas } from './components/DrawingCanvas';
@@ -48,12 +44,13 @@ function App() {
         const root = document.getElementById('root');
         if (!root) return;
         view === 'whiteboard' ? root.classList.add('full-width') : root.classList.remove('full-width');
+    }, [view]);
 
+    useEffect(() => {
         if (view === 'whiteboard' && initialProjectData && canvasRef.current) {
-            const data = initialProjectData;
             const timer = setTimeout(() => {
-                if (data.traces) canvasRef.current?.setTraces(data.traces);
-                if (data.latexObjects) canvasRef.current?.setLatexObjects(data.latexObjects);
+                if (initialProjectData.traces) canvasRef.current?.setTraces(initialProjectData.traces);
+                if (initialProjectData.latexObjects) canvasRef.current?.setLatexObjects(initialProjectData.latexObjects);
                 setInitialProjectData(null);
             }, 50);
             return () => clearTimeout(timer);
@@ -93,7 +90,7 @@ function App() {
     const handleSelectionRecognize = useCallback(async (traces: number[][][]) => {
         setIsSelectionProcessing(true);
         setIsSelectionWindowVisible(true);
-        setSelectedLatex("..."); 
+        setSelectedLatex("...");
         try {
             const result = await performInference(traces);
             setSelectedLatex(result || " ");
@@ -143,7 +140,7 @@ function App() {
         if (!canvasRef.current) return;
         const traces = canvasRef.current.getTraces();
         const latexObjects = canvasRef.current.getLatexObjects();
-        
+
         const data = {
             version: "1.0",
             timestamp: new Date().toISOString(),
@@ -153,7 +150,7 @@ function App() {
 
         const defaultName = `hand-to-tex-project-${new Date().getTime()}`;
         const fileName = prompt("Enter project filename:", defaultName) || defaultName;
-        
+
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -173,8 +170,7 @@ function App() {
         reader.onload = (event) => {
             try {
                 const data = JSON.parse(event.target?.result as string);
-                
-                // Basic Validation to mitigate JSON structural issues
+
                 if (!data || typeof data !== 'object') throw new Error("Invalid project format");
                 if (!Array.isArray(data.traces) && !Array.isArray(data.latexObjects)) {
                     throw new Error("File does not contain valid whiteboard data");
@@ -243,33 +239,33 @@ function App() {
                     <h3>Draw Expression</h3>
                     {renderModeToggle()}
                 </div>
-                <DrawingCanvas 
-                    ref={canvasRef} 
-                    className="drawing-canvas" 
-                    mode={canvasMode} 
+                <DrawingCanvas
+                    ref={canvasRef}
+                    className="drawing-canvas"
+                    mode={canvasMode}
                     onSelectionComplete={handleSelectionRecognize}
                     onSelectionChange={setNumSelectedTraces}
                 />
             </section>
             {canvasMode === 'select' && isSelectionWindowVisible && (
-                <SelectionWindow 
+                <SelectionWindow
                     latex={selectedLatex}
                     isProcessing={isSelectionProcessing}
                     numSelectedTraces={numSelectedTraces}
                     onReplace={handleReplace}
-                    onClose={() => { 
-                        setSelectedLatex(null); 
+                    onClose={() => {
+                        setSelectedLatex(null);
                         setIsSelectionWindowVisible(false);
-                        canvasRef.current?.clearSelection(); 
+                        canvasRef.current?.clearSelection();
                     }}
                     selectionPreviewRef={selectionPreviewRef}
                 />
             )}
-            <ModeHint 
-                key={canvasMode} 
-                mode={canvasMode} 
-                icon={MODE_DETAILS[canvasMode].icon} 
-                message={MODE_DETAILS[canvasMode].message} 
+            <ModeHint
+                key={canvasMode}
+                mode={canvasMode}
+                icon={MODE_DETAILS[canvasMode].icon}
+                message={MODE_DETAILS[canvasMode].message}
             />
         </div>
     );
@@ -284,7 +280,7 @@ function App() {
                 <div style={{ flexGrow: 1 }}></div>
                 {renderModeToggle(true)}
                 <div style={{ flexGrow: 1 }}></div>
-                
+
                 <div className="header-actions">
                     <button onClick={handleSaveToFile} className="mini" title="Save Project as JSON">Save JSON</button>
                     <label className="button mini" title="Load Project from JSON">
@@ -298,67 +294,67 @@ function App() {
             </div>
             <div className="whiteboard-scroll-area">
                 <div className="whiteboard-canvas-wrapper" ref={whiteboardWrapperRef}>
-                    <DrawingCanvas 
-                        ref={canvasRef} 
-                        className="whiteboard-canvas" 
-                        mode={canvasMode} 
-                        onSelectionComplete={handleSelectionRecognize} 
+                    <DrawingCanvas
+                        ref={canvasRef}
+                        className="whiteboard-canvas"
+                        mode={canvasMode}
+                        onSelectionComplete={handleSelectionRecognize}
                         onSelectionChange={setNumSelectedTraces}
                     />
                 </div>
             </div>
-            
+
             {canvasMode === 'select' && isSelectionWindowVisible && (
-                <SelectionWindow 
+                <SelectionWindow
                     latex={selectedLatex}
                     isProcessing={isSelectionProcessing}
                     numSelectedTraces={numSelectedTraces}
                     onReplace={handleReplace}
-                    onClose={() => { 
-                        setSelectedLatex(null); 
+                    onClose={() => {
+                        setSelectedLatex(null);
                         setIsSelectionWindowVisible(false);
-                        canvasRef.current?.clearSelection(); 
+                        canvasRef.current?.clearSelection();
                     }}
                     selectionPreviewRef={selectionPreviewRef}
                 />
             )}
-            <ModeHint 
-                key={canvasMode} 
-                mode={canvasMode} 
-                icon={MODE_DETAILS[canvasMode].icon} 
-                message={MODE_DETAILS[canvasMode].message} 
+            <ModeHint
+                key={canvasMode}
+                mode={canvasMode}
+                icon={MODE_DETAILS[canvasMode].icon}
+                message={MODE_DETAILS[canvasMode].message}
             />
         </div>
     );
 
     const renderModeToggle = (mini = false) => (
         <div className={`mode-toggle ${mini ? 'mini' : ''}`}>
-            <button 
-                className={canvasMode === 'draw' ? 'active' : ''} 
+            <button
+                className={canvasMode === 'draw' ? 'active' : ''}
                 onClick={() => changeCanvasMode('draw')}
                 title="Draw (Pencil)"
             >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l5 5"></path><path d="M9.5 14.5L16 8"></path></svg>
                 {!mini && <span>Draw</span>}
             </button>
-            <button 
-                className={canvasMode === 'select' ? 'active' : ''} 
+            <button
+                className={canvasMode === 'select' ? 'active' : ''}
                 onClick={() => changeCanvasMode('select')}
                 title="Select (Lasso)"
             >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                 {!mini && <span>Select</span>}
             </button>
-            <button 
-                className={canvasMode === 'erase' ? 'active' : ''} 
+            <button
+                className={canvasMode === 'erase' ? 'active' : ''}
                 onClick={() => changeCanvasMode('erase')}
                 title="Erase"
             >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20H7L3 16C2 15 2 13 3 12L13 2C14 1 16 1 17 2L21 6C22 7 22 9 21 10L11 20"></path><line x1="17" y1="6" x2="7" y2="16"></line></svg>
                 {!mini && <span>Erase</span>}
             </button>
-            <button 
-                className={canvasMode === 'pointer' ? 'active' : ''} 
+            <button
+                className={canvasMode === 'pointer' ? 'active' : ''}
                 onClick={() => changeCanvasMode('pointer')}
                 title="Pointer (Move/Resize)"
             >
@@ -394,9 +390,9 @@ function App() {
                         <h2>How to use Hand-to-TeX</h2>
                         <ol>
                             <li><strong>Draw:</strong> Use the Pencil tool to write any mathematical expression.</li>
-                            <li><strong>Recognize All:</strong> Click the button to convert your entire drawing into LaTeX code.</li>
                             <li><strong>Selective Recognition:</strong> Use the Select tool (🔍) to highlight a specific area for targeted recognition and conversion.</li>
                             <li><strong>Pointer Tool:</strong> Move or resize digitized math objects on your canvas.</li>
+                            <li><strong>Erase Tool:</strong> Remove specific strokes or objects from the canvas.</li>
                         </ol>
                         <button className="primary close-tutorial" onClick={() => setShowTutorial(false)}>Got it!</button>
                     </div>
