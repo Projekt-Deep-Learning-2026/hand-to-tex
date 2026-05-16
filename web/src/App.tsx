@@ -34,13 +34,11 @@ function App() {
     const [isSelectionProcessing, setIsSelectionProcessing] = useState(false);
     const [isSelectionWindowVisible, setIsSelectionWindowVisible] = useState(false);
     const [numSelectedTraces, setNumSelectedTraces] = useState(0);
-    const [latex, setLatex] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState<boolean>(false);
     const [initialProjectData, setInitialProjectData] = useState<any>(null);
     const [showTutorial, setShowTutorial] = useState(false);
 
     const canvasRef = useRef<DrawingCanvasHandle>(null);
-    const previewRef = useRef<HTMLDivElement>(null);
     const selectionPreviewRef = useRef<HTMLDivElement>(null);
     const whiteboardWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -92,20 +90,6 @@ function App() {
             .join(" ");
     }, [encoderSession, decoderSession, vocab]);
 
-    const handleRecognize = async () => {
-        if (!canvasRef.current?.hasStrokes()) return setLatex("Please draw something first.");
-        setIsProcessing(true);
-        setLatex("Processing drawing...");
-        try {
-            const result = await performInference(canvasRef.current.getTraces());
-            setLatex(result);
-        } catch (err) {
-            setLatex("Recognition error: " + (err as Error).message);
-        } finally {
-            setIsProcessing(false);
-        }
-    };
-
     const handleSelectionRecognize = useCallback(async (traces: number[][][]) => {
         setIsSelectionProcessing(true);
         setIsSelectionWindowVisible(true);
@@ -136,7 +120,6 @@ function App() {
 
     const handleClear = () => {
         canvasRef.current?.clear();
-        setLatex('');
         setSelectedLatex(null);
         setNumSelectedTraces(0);
         setIsSelectionWindowVisible(false);
@@ -144,9 +127,7 @@ function App() {
 
     const navigateToView = (v: View) => {
         setView(v);
-        setLatex('');
-        setSelectedLatex(null);
-        setIsSelectionWindowVisible(false);
+        changeCanvasMode('draw');
         if (status !== 'success') load();
     };
 
@@ -169,12 +150,15 @@ function App() {
             traces,
             latexObjects
         };
+
+        const defaultName = `hand-to-tex-project-${new Date().getTime()}`;
+        const fileName = prompt("Enter project filename:", defaultName) || defaultName;
         
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `hand-to-tex-${new Date().getTime()}.json`;
+        a.download = fileName.endsWith('.json') ? fileName : `${fileName}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -202,6 +186,7 @@ function App() {
                 } else {
                     if (data.traces) canvasRef.current?.setTraces(data.traces);
                     if (data.latexObjects) canvasRef.current?.setLatexObjects(data.latexObjects);
+                    changeCanvasMode('draw');
                 }
             } catch (err) {
                 alert("Error loading project: " + (err as Error).message);
@@ -219,6 +204,10 @@ function App() {
             if (canvasMode === 'pointer' || canvasMode === 'select') {
                 canvasRef.current?.setMode('draw');
             }
+
+            const defaultName = `hand-to-tex-export-${new Date().getTime()}`;
+            const fileName = prompt("Enter PDF filename:", defaultName) || defaultName;
+
             const canvas = await html2canvas(whiteboardWrapperRef.current, {
                 useCORS: true, scale: 2, backgroundColor: "#ffffff"
             });
@@ -228,7 +217,7 @@ function App() {
                 unit: 'px', format: [canvas.width, canvas.height]
             });
             pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
-            pdf.save(`hand-to-tex-${new Date().getTime()}.pdf`);
+            pdf.save(fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`);
         } catch (err) {
             alert("Error exporting PDF: " + (err as Error).message);
         } finally {

@@ -5,7 +5,7 @@ interface SelectionWindowProps {
     isProcessing: boolean;
     onReplace: () => void;
     onClose: () => void;
-    selectionPreviewRef: React.RefObject<HTMLDivElement>;
+    selectionPreviewRef: React.RefObject<HTMLDivElement | null>;
     numSelectedTraces: number;
 }
 

@@ -28,7 +28,6 @@ export class CanvasDrawing {
     private draggingObjectId: string | null = null;
     private resizingObjectId: string | null = null;
     private dragOffset = { x: 0, y: 0 };
-    private initialSize = { width: 0, height: 0 };
 
     private onSelectionComplete?: (traces: number[][][]) => void;
     private onSelectionChange?: (count: number) => void;
