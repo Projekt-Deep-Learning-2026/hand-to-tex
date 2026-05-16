@@ -4,14 +4,25 @@ from pathlib import Path
 
 import pytest
 import torch
-from loguru import logger
 
-from hand_to_tex.utils import LatexVocab
+from hand_to_tex.datasets.dataset import _HMEDatasetBase
+from hand_to_tex.utils import LatexVocab, logger
 
 
 @pytest.fixture
 def fixtures_dir() -> Path:
-    return Path(__file__).parent / "fixtures"
+    return Path("tests", "fixtures")
+
+
+@pytest.fixture
+def hand_to_tex_dir() -> Path:
+    return Path("src", "hand_to_tex")
+
+
+@pytest.fixture
+def feature_dim() -> int:
+    """Feature dimension for input features (from _HMEDatasetBase.FEATURES)."""
+    return _HMEDatasetBase.FEATURES
 
 
 @pytest.fixture

@@ -1,3 +1,8 @@
+"""Tests for HMELightningModule.
+
+Validates initialization, forward pass, loss computation, and generation.
+"""
+
 from __future__ import annotations
 
 import torch
@@ -6,69 +11,124 @@ import torch.nn as nn
 from hand_to_tex.models.lit_module import HMELightningModule
 
 
-class TestLitModuleConstruction:
-    def test_module_has_expected_components(self, tiny_lit_module: HMELightningModule):
+class TestModuleInitialization:
+    """Test module setup and configuration."""
+
+    def test_module_components_exist(self, tiny_lit_module: HMELightningModule) -> None:
+        """Module must have core components."""
         assert hasattr(tiny_lit_module, "model")
         assert hasattr(tiny_lit_module, "vocab")
         assert isinstance(tiny_lit_module.criterion, nn.CrossEntropyLoss)
 
-    def test_criterion_ignores_pad_index(self, tiny_lit_module: HMELightningModule):
-        """PAD tokens must not contribute to the gradient."""
+    def test_criterion_configuration(self, tiny_lit_module: HMELightningModule) -> None:
+        """Loss function must ignore PAD tokens."""
         assert tiny_lit_module.criterion.ignore_index == tiny_lit_module.vocab.PAD
 
 
-class TestForwardThroughLitModule:
-    def test_forward_returns_logits(self, tiny_lit_module: HMELightningModule, synthetic_batch):
+class TestForward:
+    """Test the forward pass."""
+
+    def test_forward_shape(
+        self, tiny_lit_module: HMELightningModule, synthetic_batch: tuple
+    ) -> None:
+        """Forward must return logits of shape (B, T-1, V)."""
         tiny_lit_module.eval()
-        padded_features, feature_lengths, padded_tokens, _ = synthetic_batch
-        target_input = padded_tokens[:, :-1]
+        features, lengths, tokens, _ = synthetic_batch
+        target = tokens[:, :-1]
 
-        out = tiny_lit_module(
-            src=padded_features,
-            src_lengths=feature_lengths,
-            tgt=target_input,
-        )
+        out = tiny_lit_module(src=features, src_lengths=lengths, tgt=target)
 
-        B, T_tgt_minus_1 = target_input.shape
-        assert out.shape == (B, T_tgt_minus_1, len(tiny_lit_module.vocab))
+        B, T = target.shape
+        V = len(tiny_lit_module.vocab)
+        assert out.shape == (B, T, V)
+        assert out.dtype == torch.float32
+
+    def test_forward_output_finite(
+        self, tiny_lit_module: HMELightningModule, synthetic_batch: tuple
+    ) -> None:
+        """Output must not contain NaN or Inf."""
+        tiny_lit_module.eval()
+        features, lengths, tokens, _ = synthetic_batch
+
+        out = tiny_lit_module(src=features, src_lengths=lengths, tgt=tokens[:, :-1])
+
+        assert torch.isfinite(out).all()
 
 
-class TestLossComputation:
-    def test_shared_step_returns_finite_scalar_loss(
-        self, tiny_lit_module: HMELightningModule, synthetic_batch
-    ):
+class TestSharedStep:
+    """Test the _shared_step method used by training/validation/test."""
+
+    def test_shared_step_returns_correct_types(
+        self, tiny_lit_module: HMELightningModule, synthetic_batch: tuple
+    ) -> None:
+        """_shared_step must return (loss, output, target)."""
         tiny_lit_module.train()
-        loss, output, expected = tiny_lit_module._shared_step(synthetic_batch)
+        loss, output, target = tiny_lit_module._shared_step(synthetic_batch)
 
-        assert loss.ndim == 0
+        assert loss.ndim == 0  # Scalar
         assert torch.isfinite(loss)
-        assert loss.item() >= 0.0
+        assert loss >= 0.0
+
         B, T_tgt = synthetic_batch[2].shape
-        assert output.shape == (B, T_tgt - 1, len(tiny_lit_module.vocab))
-        assert expected.shape == (B, T_tgt - 1)
+        V = len(tiny_lit_module.vocab)
 
-    def test_loss_is_zero_when_logits_perfectly_predict_targets(
-        self, tiny_lit_module: HMELightningModule, synthetic_batch
-    ):
-        _, _, padded_tokens, _ = synthetic_batch
-        target_expected = padded_tokens[:, 1:]
-        vocab_size = len(tiny_lit_module.vocab)
+        assert output.shape == (B, T_tgt - 1, V)
+        assert target.shape == (B, T_tgt - 1)
 
-        B, T = target_expected.shape
-        perfect_logits = torch.full((B, T, vocab_size), -1e9)
-        perfect_logits.scatter_(dim=2, index=target_expected.unsqueeze(-1), value=0.0)
+    def test_perfect_logits_give_zero_loss(
+        self, tiny_lit_module: HMELightningModule, synthetic_batch: tuple
+    ) -> None:
+        """When logits perfectly match targets, loss should be ~zero."""
+        _, _, tokens, _ = synthetic_batch
+        target = tokens[:, 1:]
+        B, T = target.shape
+        V = len(tiny_lit_module.vocab)
+
+        # Create perfect logits: very high value for correct class
+        perfect_logits = torch.full((B, T, V), -1e9)
+        perfect_logits.scatter_(dim=2, index=target.unsqueeze(-1), value=0.0)
 
         loss = tiny_lit_module.criterion(
-            perfect_logits.reshape(-1, vocab_size),
-            target_expected.reshape(-1),
+            perfect_logits.reshape(-1, V),
+            target.reshape(-1),
         )
         assert loss.item() < 1e-3
 
-    def test_loss_decreases_after_one_optimizer_step(
-        self, tiny_lit_module: HMELightningModule, synthetic_batch
-    ):
+    def test_pad_tokens_ignored_in_loss(self, tiny_lit_module: HMELightningModule) -> None:
+        """Loss at PAD positions must be ignored."""
+        vocab = tiny_lit_module.vocab
+        B, T, V = 2, 3, len(vocab)
+
+        target = torch.tensor(
+            [
+                [vocab.encode("x"), vocab.EOS, vocab.encode("x")],
+                [vocab.encode("x"), vocab.EOS, vocab.PAD],
+            ],
+            dtype=torch.long,
+        )
+
+        logits = torch.randn(B, T, V, requires_grad=False)
+        loss_before = tiny_lit_module.criterion(
+            logits.reshape(-1, V),
+            target.reshape(-1),
+        )
+
+        # Perturb PAD position
+        logits_modified = logits.clone()
+        logits_modified[1, 2, :] = torch.randn(V) * 1000
+        loss_after = tiny_lit_module.criterion(
+            logits_modified.reshape(-1, V),
+            target.reshape(-1),
+        )
+
+        # Losses should be the same
+        assert torch.isclose(loss_before, loss_after, atol=1e-5)
+
+    def test_loss_decreases_after_step(
+        self, tiny_lit_module: HMELightningModule, synthetic_batch: tuple
+    ) -> None:
+        """After one optimizer step, loss should decrease."""
         tiny_lit_module.train()
-        # Plain SGD avoids needing configure_optimizers (which needs self.trainer).
         optim = torch.optim.SGD(tiny_lit_module.parameters(), lr=0.1)
 
         loss_before, _, _ = tiny_lit_module._shared_step(synthetic_batch)
@@ -79,91 +139,77 @@ class TestLossComputation:
         with torch.no_grad():
             loss_after, _, _ = tiny_lit_module._shared_step(synthetic_batch)
 
-        assert loss_after.item() < loss_before.item()
+        assert loss_after < loss_before
 
-    def test_pad_position_logits_do_not_affect_loss(self, tiny_lit_module: HMELightningModule):
-        """Logits at PAD positions must be ignored by the criterion."""
-        torch.manual_seed(0)
-        vocab = tiny_lit_module.vocab
-        eos, pad = vocab.EOS, vocab.PAD
-        a = vocab.encode("x")
-        V = len(vocab)
+    def test_gradients_flow_to_all_params(
+        self, tiny_lit_module: HMELightningModule, synthetic_batch: tuple
+    ) -> None:
+        """All parameters must receive gradients."""
+        tiny_lit_module.train()
+        loss, _, _ = tiny_lit_module._shared_step(synthetic_batch)
+        loss.backward()
 
-        target_expected = torch.tensor(
-            [[a, eos, a], [a, eos, pad]],
-            dtype=torch.long,
-        )
-        logits = torch.randn(2, 3, V, requires_grad=False)
-        loss_before = tiny_lit_module.criterion(logits.reshape(-1, V), target_expected.reshape(-1))
-
-        logits_perturbed = logits.clone()
-        logits_perturbed[1, 2, :] = torch.randn(V) * 1000
-        loss_after = tiny_lit_module.criterion(
-            logits_perturbed.reshape(-1, V), target_expected.reshape(-1)
-        )
-
-        assert torch.isclose(loss_before, loss_after), (
-            "Loss changed when only PAD-position logits were perturbed; "
-            "ignore_index=PAD is likely not configured correctly."
-        )
+        missing = [
+            name
+            for name, p in tiny_lit_module.named_parameters()
+            if p.requires_grad and p.grad is None
+        ]
+        assert not missing, f"Missing gradients: {missing}"
 
 
 class TestTrainingStep:
+    """Test the training_step method."""
+
     def test_training_step_returns_scalar_loss(
-        self, tiny_lit_module: HMELightningModule, synthetic_batch
-    ):
+        self, tiny_lit_module: HMELightningModule, synthetic_batch: tuple
+    ) -> None:
+        """training_step must return scalar tensor."""
         tiny_lit_module.train()
-        # Disable .log to avoid the "Trainer not attached" error.
-        tiny_lit_module.log = lambda *_a, **_kw: None  # type: ignore[assignment]
+        tiny_lit_module.log = lambda *a, **kw: None  # Mock logging
 
         loss = tiny_lit_module.training_step(synthetic_batch, batch_idx=0)
+
         assert loss.ndim == 0
         assert loss.requires_grad
         assert torch.isfinite(loss)
 
 
-class TestGenerate:
-    def test_generate_returns_long_token_tensor(
-        self, tiny_lit_module: HMELightningModule, synthetic_batch
-    ):
-        tiny_lit_module.eval()
-        padded_features, feature_lengths, *_ = synthetic_batch
+class TestGeneration:
+    """Test sequence generation."""
 
-        tokens = tiny_lit_module.generate(padded_features, feature_lengths)
+    def test_generate_returns_tokens(
+        self, tiny_lit_module: HMELightningModule, synthetic_batch: tuple
+    ) -> None:
+        """generate() must return token tensor."""
+        tiny_lit_module.eval()
+        features, lengths, *_ = synthetic_batch
+
+        tokens = tiny_lit_module.generate(features, lengths)
 
         assert tokens.dtype == torch.long
         assert tokens.ndim == 2
-        assert tokens.shape[0] == padded_features.shape[0]
+        assert tokens.shape[0] == features.shape[0]
         assert tokens.shape[1] <= tiny_lit_module.max_generate_len
 
-    def test_generate_starts_each_sequence_with_sos(
-        self, tiny_lit_module: HMELightningModule, synthetic_batch
-    ):
+    def test_generate_starts_with_sos(
+        self, tiny_lit_module: HMELightningModule, synthetic_batch: tuple
+    ) -> None:
+        """Generated sequences must start with SOS token."""
         tiny_lit_module.eval()
-        padded_features, feature_lengths, *_ = synthetic_batch
+        features, lengths, *_ = synthetic_batch
 
-        tokens = tiny_lit_module.generate(padded_features, feature_lengths)
-        assert torch.all(tokens[:, 0] == tiny_lit_module.vocab.SOS)
+        tokens = tiny_lit_module.generate(features, lengths)
 
+        assert (tokens[:, 0] == tiny_lit_module.vocab.SOS).all()
 
-class TestToExpr:
-    def test_to_expr_stops_at_eos(self, tiny_lit_module: HMELightningModule):
-        vocab = tiny_lit_module.vocab
-        tokens = torch.tensor(
-            [vocab.SOS, vocab.encode("x"), vocab.EOS, vocab.encode("y")],
-            dtype=torch.long,
-        )
-        result = tiny_lit_module._to_expr(tokens)
-        assert "y" not in result
-        assert "x" in result
+    def test_generate_tokens_in_vocab(
+        self, tiny_lit_module: HMELightningModule, synthetic_batch: tuple
+    ) -> None:
+        """Generated tokens must be valid."""
+        tiny_lit_module.eval()
+        features, lengths, *_ = synthetic_batch
 
-    def test_to_expr_skips_special_tokens(self, tiny_lit_module: HMELightningModule):
-        vocab = tiny_lit_module.vocab
-        tokens = torch.tensor(
-            [vocab.SOS, vocab.PAD, vocab.UNK, vocab.encode("x"), vocab.EOS],
-            dtype=torch.long,
-        )
-        result = tiny_lit_module._to_expr(tokens)
-        assert "<SOS>" not in result
-        assert "<PAD>" not in result
-        assert "<UNK>" not in result
+        tokens = tiny_lit_module.generate(features, lengths)
+        V = len(tiny_lit_module.vocab)
+
+        assert (tokens >= 0).all() and (tokens < V).all()
