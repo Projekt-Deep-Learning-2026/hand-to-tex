@@ -1,10 +1,309 @@
 .app-container {
     font-family: Arial, sans-serif;
+    max-width: 100%;
+    margin: 0;
+    line-height: 1.6;
+    padding: 0;
+}
+
+.view-container {
     max-width: 800px;
     margin: 40px auto;
-    line-height: 1.6;
     padding: 0 20px;
 }
+
+/* Home Styles */
+.home-container {
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.hero h1 {
+    font-size: 3.5rem;
+    margin-bottom: 10px;
+    color: var(--text-h);
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    color: var(--text);
+    margin-bottom: 40px;
+}
+
+.cta-group {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 60px;
+}
+
+.cta-button {
+    display: flex;
+    align-items: center;
+    padding: 20px 30px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    width: 300px;
+    box-shadow: var(--shadow);
+}
+
+.cta-button:hover {
+    transform: translateY(-4px);
+    border-color: var(--accent);
+}
+
+.cta-button .icon {
+    font-size: 2.5rem;
+    margin-right: 20px;
+}
+
+.cta-button .text {
+    display: flex;
+    flex-direction: column;
+}
+
+.cta-button strong {
+    font-size: 1.1rem;
+    color: var(--text-h);
+}
+
+.cta-button span {
+    font-size: 0.9rem;
+    color: var(--text);
+}
+
+.features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 30px;
+    margin-top: 40px;
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.feature h3 {
+    color: var(--accent);
+    margin-bottom: 10px;
+}
+
+/* Whiteboard Styles */
+.whiteboard-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.whiteboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.whiteboard-canvas {
+    flex-grow: 1;
+    border: 3px solid #333;
+    border-radius: 8px;
+    background-color: #fff;
+    cursor: crosshair;
+}
+
+.whiteboard-controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: center;
+}
+
+.whiteboard-result {
+    margin: 20px 0;
+    text-align: center;
+}
+
+.whiteboard-result .preview-container {
+    margin-top: 0;
+    min-height: 100px;
+    background: white;
+}
+
+.latex-mini {
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    color: var(--text);
+    margin-top: 10px;
+    min-height: 1.2rem;
+}
+
+.status-mini {
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.whiteboard-title {
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: var(--text-h);
+}
+
+/* Shared Components */
+.back-button {
+    margin-bottom: 20px;
+    background-color: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.mode-toggle {
+    display: flex;
+    background: var(--social-bg);
+    padding: 4px;
+    border-radius: 8px;
+    gap: 4px;
+}
+
+.mode-toggle button {
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+    border: none;
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.mode-toggle button:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.mode-toggle button.active {
+    background: var(--bg);
+    color: var(--accent);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.mode-toggle.mini {
+    padding: 2px;
+}
+
+.mode-toggle.mini button {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+/* Selection Styles */
+.selection-card {
+    border: 1px solid var(--accent-border);
+    background: var(--accent-bg);
+}
+
+.selection-result {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    position: relative;
+}
+
+.selection-preview {
+    font-size: 1.2rem;
+    min-width: 40px;
+}
+
+.selection-latex {
+    background: var(--bg);
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    font-size: 0.9rem;
+}
+
+.close-selection {
+    position: absolute;
+    right: -10px;
+    top: -10px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border-radius: 50%;
+    background: #ff4d4d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.selection-popover {
+    position: absolute;
+    top: 80px;
+    right: 40px;
+    width: 250px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    z-index: 100;
+    overflow: hidden;
+}
+
+.popover-header {
+    background: var(--social-bg);
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+}
+
+.popover-header button {
+    padding: 0;
+    background: transparent;
+    color: var(--text);
+    font-size: 18px;
+    margin: 0;
+}
+
+.popover-content {
+    padding: 15px;
+    text-align: center;
+}
+
+.selection-preview-large {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.selection-latex-mini {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--text);
+    word-break: break-all;
+    background: var(--code-bg);
+    padding: 6px;
+    border-radius: 4px;
+}
+
+/* Rest of existing styles... */
 
 .card {
     padding: 20px;
@@ -80,6 +379,7 @@ input[type="file"] {
     white-space: pre-wrap;
     min-height: 40px;
     border: 1px solid #ddd;
+    color: #333;
 }
 
 .preview-container {
@@ -93,6 +393,7 @@ input[type="file"] {
     align-items: center;
     justify-content: center;
     font-size: 1.5em;
+    color: #333;
 }
 
 .preview-label {
@@ -105,4 +406,15 @@ input[type="file"] {
 .button-group {
     display: flex;
     gap: 10px;
+}
+
+@media (max-width: 768px) {
+    .cta-group {
+        flex-direction: column;
+        align-items: center;
+    }
+    .cta-button {
+        width: 100%;
+        max-width: 300px;
+    }
 }

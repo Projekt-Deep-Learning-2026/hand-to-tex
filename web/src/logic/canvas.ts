@@ -1,15 +1,17 @@
-/**
- * Canvas drawing utility for capturing hand-drawn mathematical expressions
- * Captures strokes as sequences of (x, y, timestamp) points
- */
+export type CanvasMode = 'draw' | 'select';
 
 export class CanvasDrawing {
     private canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D;
-    private isDrawing: boolean = false;
-    private traces: number[][][] = []; // Array of strokes
-    private currentTrace: number[][] = []; // Current stroke being drawn
-    private startTime: number = 0;
+    private isActive = false;
+    private traces: number[][][] = [];
+    private currentTrace: number[][] = [];
+    private startTime = 0;
+    
+    private mode: CanvasMode = 'draw';
+    private selectionStart: { x: number, y: number } | null = null;
+    private selectionEnd: { x: number, y: number } | null = null;
+    private onSelectionComplete?: (traces: number[][][]) => void;
 
     constructor(canvasElement: HTMLCanvasElement) {
         this.canvas = canvasElement;
@@ -21,7 +23,6 @@ export class CanvasDrawing {
     }
 
     private setupCanvas() {
-        // Adjust for DPI if needed, but keeping it simple for now
         const rect = this.canvas.getBoundingClientRect();
         this.canvas.width = rect.width;
         this.canvas.height = rect.height;
@@ -32,93 +33,175 @@ export class CanvasDrawing {
         this.ctx.strokeStyle = '#000000';
     }
 
+    public setMode(mode: CanvasMode) {
+        this.mode = mode;
+        this.clearSelection();
+        this.redraw();
+    }
+
+    public setOnSelectionComplete(callback: (traces: number[][][]) => void) {
+        this.onSelectionComplete = callback;
+    }
+
     public handleMouseDown(e: React.MouseEvent | MouseEvent) {
-        this.startStroke(this.getCoordinates(e));
+        const coords = this.getCoordinates(e);
+        this.mode === 'draw' ? this.startStroke(coords) : this.startSelection(coords);
     }
 
     public handleMouseMove(e: React.MouseEvent | MouseEvent) {
-        this.draw(this.getCoordinates(e));
+        const coords = this.getCoordinates(e);
+        this.mode === 'draw' ? this.draw(coords) : this.updateSelection(coords);
     }
 
     public handleMouseUp() {
-        this.endStroke();
+        this.mode === 'draw' ? this.endStroke() : this.endSelection();
     }
 
     public handleTouchStart(e: React.TouchEvent | TouchEvent) {
         e.preventDefault();
-        this.startStroke(this.getCoordinates(e));
+        const coords = this.getCoordinates(e);
+        this.mode === 'draw' ? this.startStroke(coords) : this.startSelection(coords);
     }
 
     public handleTouchMove(e: React.TouchEvent | TouchEvent) {
         e.preventDefault();
-        this.draw(this.getCoordinates(e));
+        const coords = this.getCoordinates(e);
+        this.mode === 'draw' ? this.draw(coords) : this.updateSelection(coords);
     }
 
     public handleTouchEnd() {
-        this.endStroke();
+        this.mode === 'draw' ? this.endStroke() : this.endSelection();
     }
 
-    private getCoordinates(event: React.MouseEvent | MouseEvent | React.TouchEvent | TouchEvent): { x: number, y: number } {
+    private getCoordinates(event: any): { x: number, y: number } {
         const rect = this.canvas.getBoundingClientRect();
         let x: number, y: number;
 
-        if ('touches' in event) {
+        if (event.touches?.[0]) {
             x = event.touches[0].clientX - rect.left;
             y = event.touches[0].clientY - rect.top;
+        } else if (event.changedTouches?.[0]) {
+            x = event.changedTouches[0].clientX - rect.left;
+            y = event.changedTouches[0].clientY - rect.top;
         } else {
-            x = (event as MouseEvent).clientX - rect.left;
-            y = (event as MouseEvent).clientY - rect.top;
+            x = event.clientX - rect.left;
+            y = event.clientY - rect.top;
         }
 
         return { x, y };
     }
 
     private startStroke({ x, y }: { x: number, y: number }) {
-        this.isDrawing = true;
-        this.currentTrace = [];
+        this.isActive = true;
+        this.currentTrace = [[x, y, 0]];
         this.startTime = Date.now();
-
-        const t = 0;
-        this.currentTrace.push([x, y, t]);
         this.ctx.beginPath();
         this.ctx.moveTo(x, y);
     }
 
     private draw({ x, y }: { x: number, y: number }) {
-        if (!this.isDrawing) return;
-
-        const t = Date.now() - this.startTime;
-        this.currentTrace.push([x, y, t]);
+        if (!this.isActive || this.mode !== 'draw') return;
+        this.currentTrace.push([x, y, Date.now() - this.startTime]);
         this.ctx.lineTo(x, y);
         this.ctx.stroke();
     }
 
     private endStroke() {
-        if (!this.isDrawing || this.currentTrace.length === 0) return;
-
-        this.isDrawing = false;
-        this.ctx.closePath();
-
-        if (this.currentTrace.length > 1) {
-            this.traces.push([...this.currentTrace]);
+        if (!this.isActive || this.currentTrace.length < 2) {
+            this.isActive = false;
+            return;
         }
-
+        this.isActive = false;
+        this.ctx.closePath();
+        this.traces.push([...this.currentTrace]);
         this.currentTrace = [];
     }
 
-    public getTraces(): number[][][] {
+    private startSelection({ x, y }: { x: number, y: number }) {
+        this.isActive = true;
+        this.selectionStart = { x, y };
+        this.selectionEnd = { x, y };
+    }
+
+    private updateSelection({ x, y }: { x: number, y: number }) {
+        if (!this.isActive || this.mode !== 'select') return;
+        this.selectionEnd = { x, y };
+        this.redraw();
+    }
+
+    private endSelection() {
+        if (!this.isActive || !this.selectionStart || !this.selectionEnd) return;
+        this.isActive = false;
+
+        const selectedTraces = this.getSelectedTraces();
+        if (selectedTraces.length > 0) {
+            this.onSelectionComplete?.(selectedTraces);
+        }
+    }
+
+    private getSelectedTraces(): number[][][] {
+        if (!this.selectionStart || !this.selectionEnd) return [];
+
+        const x1 = Math.min(this.selectionStart.x, this.selectionEnd.x);
+        const y1 = Math.min(this.selectionStart.y, this.selectionEnd.y);
+        const x2 = Math.max(this.selectionStart.x, this.selectionEnd.x);
+        const y2 = Math.max(this.selectionStart.y, this.selectionEnd.y);
+
+        return this.traces.filter(trace => 
+            trace.some(([px, py]) => px >= x1 && px <= x2 && py >= y1 && py <= y2)
+        );
+    }
+
+    private redraw() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = '#000000';
+        this.traces.forEach(trace => {
+            if (trace.length < 2) return;
+            this.ctx.moveTo(trace[0][0], trace[0][1]);
+            for (let i = 1; i < trace.length; i++) {
+                this.ctx.lineTo(trace[i][0], trace[i][1]);
+            }
+        });
+        this.ctx.stroke();
+
+        if (this.mode === 'select' && this.selectionStart && this.selectionEnd) {
+            const x1 = Math.min(this.selectionStart.x, this.selectionEnd.x);
+            const y1 = Math.min(this.selectionStart.y, this.selectionEnd.y);
+            const w = Math.abs(this.selectionStart.x - this.selectionEnd.x);
+            const h = Math.abs(this.selectionStart.y - this.selectionEnd.y);
+
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.strokeStyle = '#007BFF';
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(x1, y1, w, h);
+            this.ctx.fillStyle = 'rgba(0, 123, 255, 0.1)';
+            this.ctx.fillRect(x1, y1, w, h);
+            this.ctx.setLineDash([]);
+            this.ctx.lineWidth = 2;
+        }
+    }
+
+    public clearSelection() {
+        this.selectionStart = null;
+        this.selectionEnd = null;
+        this.redraw();
+    }
+
+    public getTraces() {
         return this.traces;
     }
 
-    public hasStrokes(): boolean {
+    public hasStrokes() {
         return this.traces.length > 0;
     }
 
     public clear() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.traces = [];
         this.currentTrace = [];
-        this.isDrawing = false;
+        this.isActive = false;
+        this.clearSelection();
     }
 
     public resize() {
@@ -127,9 +210,7 @@ export class CanvasDrawing {
             this.canvas.width = rect.width;
             this.canvas.height = rect.height;
             this.setupCanvas();
-            // Optional: redraw traces if you want to support resizing without clearing
-            // For now, let's just clear
-            this.clear();
+            this.redraw();
         }
     }
 }

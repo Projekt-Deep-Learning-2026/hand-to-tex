@@ -1,23 +1,36 @@
 import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { CanvasDrawing } from '../logic/canvas';
+import type { CanvasMode } from '../logic/canvas';
 
 interface DrawingCanvasProps {
     className?: string;
+    mode?: CanvasMode;
+    onSelectionComplete?: (traces: number[][][]) => void;
 }
 
 export interface DrawingCanvasHandle {
     clear: () => void;
     getTraces: () => number[][][];
     hasStrokes: () => boolean;
+    setMode: (mode: CanvasMode) => void;
+    clearSelection: () => void;
 }
 
-export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(({ className }, ref) => {
+export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(({ 
+    className, 
+    mode = 'draw',
+    onSelectionComplete 
+}, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const drawingRef = useRef<CanvasDrawing | null>(null);
 
     useEffect(() => {
         if (canvasRef.current) {
             drawingRef.current = new CanvasDrawing(canvasRef.current);
+            drawingRef.current.setMode(mode);
+            if (onSelectionComplete) {
+                drawingRef.current.setOnSelectionComplete(onSelectionComplete);
+            }
             
             const handleResize = () => {
                 drawingRef.current?.resize();
@@ -27,10 +40,22 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         }
     }, []);
 
+    useEffect(() => {
+        drawingRef.current?.setMode(mode);
+    }, [mode]);
+
+    useEffect(() => {
+        if (onSelectionComplete) {
+            drawingRef.current?.setOnSelectionComplete(onSelectionComplete);
+        }
+    }, [onSelectionComplete]);
+
     useImperativeHandle(ref, () => ({
         clear: () => drawingRef.current?.clear(),
         getTraces: () => drawingRef.current?.getTraces() || [],
-        hasStrokes: () => drawingRef.current?.hasStrokes() || false
+        hasStrokes: () => drawingRef.current?.hasStrokes() || false,
+        setMode: (m: CanvasMode) => drawingRef.current?.setMode(m),
+        clearSelection: () => drawingRef.current?.clearSelection()
     }));
 
     return (

@@ -11,6 +11,7 @@ export interface ModelState {
     progress: string;
 }
 
+
 export function useModel() {
     const [state, setState] = useState<ModelState>({
         encoderSession: null,
@@ -25,13 +26,13 @@ export function useModel() {
         setState(prev => ({ ...prev, status: 'loading', progress: 'Loading vocabulary...' }));
         try {
             const vocab = await loadVocab();
-            
+
             setState(prev => ({ ...prev, progress: 'Loading encoder...' }));
             const encoderSession = await ort.InferenceSession.create(ENCODER_URL, { executionProviders: ['wasm'] });
-            
+
             setState(prev => ({ ...prev, progress: 'Loading decoder...' }));
             const decoderSession = await ort.InferenceSession.create(DECODER_URL, { executionProviders: ['wasm'] });
-            
+
             setState({
                 encoderSession,
                 decoderSession,
