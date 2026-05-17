@@ -189,6 +189,10 @@
     gap: 20px;
     color: #eee;
     flex-wrap: wrap;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 @media (max-width: 768px) {
@@ -196,6 +200,8 @@
         padding: 8px 10px;
         gap: 10px;
         justify-content: center;
+        user-select: none;
+        -webkit-user-select: none;
     }
     .whiteboard-title {
         display: none;
@@ -224,6 +230,11 @@
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
     margin: 0;
     position: relative;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-touch-callout: none;
 }
 
 .whiteboard-canvas {
@@ -393,6 +404,10 @@
     min-width: 90px; /* Ensure uniform width */
     height: 32px;    /* Ensure uniform height */
     box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .header-actions .button.mini:hover,
@@ -668,6 +683,11 @@ button:disabled {
     background-color: #fff;
     margin-bottom: 10px;
     border-radius: 4px;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-touch-callout: none;
 }
 
 @media (max-width: 600px) {

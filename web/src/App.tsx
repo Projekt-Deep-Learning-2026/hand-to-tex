@@ -26,6 +26,7 @@ const MODE_DETAILS: Record<CanvasMode, { icon: string, message: string }> = {
 function App() {
     const [view, setView] = useState<View>('home');
     const [canvasMode, setCanvasMode] = useState<CanvasMode>('draw');
+    const [penOnlyMode, setPenOnlyMode] = useState<boolean>(false);
     const [selectedLatex, setSelectedLatex] = useState<string | null>(null);
     const [isSelectionProcessing, setIsSelectionProcessing] = useState(false);
     const [isSelectionWindowVisible, setIsSelectionWindowVisible] = useState(false);
@@ -243,6 +244,7 @@ function App() {
                     ref={canvasRef} 
                     className="drawing-canvas" 
                     mode={canvasMode} 
+                    penOnlyMode={penOnlyMode}
                     onSelectionComplete={handleSelectionRecognize}
                     onSelectionChange={setNumSelectedTraces}
                 />
@@ -262,10 +264,12 @@ function App() {
                 />
             )}
             <ModeHint 
-                key={canvasMode} 
+                key={`${canvasMode}-${penOnlyMode}`} 
                 mode={canvasMode} 
                 icon={MODE_DETAILS[canvasMode].icon} 
-                message={MODE_DETAILS[canvasMode].message} 
+                message={penOnlyMode && ['draw', 'select', 'erase'].includes(canvasMode) 
+                    ? `Pen Only Mode Active: ${MODE_DETAILS[canvasMode].message}` 
+                    : MODE_DETAILS[canvasMode].message} 
             />
         </div>
     );
@@ -298,6 +302,7 @@ function App() {
                         ref={canvasRef} 
                         className="whiteboard-canvas" 
                         mode={canvasMode} 
+                        penOnlyMode={penOnlyMode}
                         onSelectionComplete={handleSelectionRecognize} 
                         onSelectionChange={setNumSelectedTraces}
                     />
@@ -319,10 +324,12 @@ function App() {
                 />
             )}
             <ModeHint 
-                key={canvasMode} 
+                key={`${canvasMode}-${penOnlyMode}`} 
                 mode={canvasMode} 
                 icon={MODE_DETAILS[canvasMode].icon} 
-                message={MODE_DETAILS[canvasMode].message} 
+                message={penOnlyMode && ['draw', 'select', 'erase'].includes(canvasMode) 
+                    ? `Pen Only Mode Active: ${MODE_DETAILS[canvasMode].message}` 
+                    : MODE_DETAILS[canvasMode].message} 
             />
         </div>
     );
@@ -360,6 +367,16 @@ function App() {
             >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 3 10 21 13 13 21 10 3 3"></polyline><line x1="13" y1="13" x2="21" y2="21"></line></svg>
                 {!mini && <span>Pointer</span>}
+            </button>
+            <div className="separator"></div>
+            <button 
+                className={penOnlyMode ? 'active' : ''} 
+                onClick={() => setPenOnlyMode(!penOnlyMode)}
+                title="Lock to Pen only (for mobile)"
+                style={{ color: penOnlyMode ? '#aa3bff' : '#aaa' }}
+            >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path></svg>
+                {!mini && <span>Pen Only</span>}
             </button>
             <div className="separator"></div>
             <button onClick={() => canvasRef.current?.undo()} title="Undo (Ctrl + Z)">

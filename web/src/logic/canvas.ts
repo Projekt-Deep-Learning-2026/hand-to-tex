@@ -19,6 +19,7 @@ export class CanvasDrawing {
     private startTime = 0;
     
     private mode: CanvasMode = 'draw';
+    private penOnlyMode = false;
     private selectionStart: { x: number, y: number } | null = null;
     private selectionEnd: { x: number, y: number } | null = null;
     private selectedTraceIndices: Set<number> = new Set();
@@ -56,6 +57,10 @@ export class CanvasDrawing {
         this.redraw();
     }
 
+    public setPenOnlyMode(enabled: boolean) {
+        this.penOnlyMode = enabled;
+    }
+
     public setOnSelectionComplete(callback: (traces: number[][][]) => void) {
         this.onSelectionComplete = callback;
     }
@@ -64,7 +69,26 @@ export class CanvasDrawing {
         this.onSelectionChange = callback;
     }
 
-    public handleMouseDown(e: React.MouseEvent | MouseEvent) {
+    private isEventAllowed(e: PointerEvent): boolean {
+        if (!this.penOnlyMode) return true;
+        
+        // If penOnlyMode is active, only allow pen for draw, select, erase
+        if (['draw', 'select', 'erase'].includes(this.mode)) {
+            return e.pointerType === 'pen';
+        }
+        
+        // pointer mode (move/resize) is always allowed (finger is okay)
+        return true;
+    }
+
+    public handlePointerDown(e: PointerEvent) {
+        if (!this.isEventAllowed(e)) return;
+        
+        // Ensure it's a real touch/press, not just hover proximity
+        // e.buttons === 1 is primary (tip contact)
+        // e.pressure > 0 is another check for contact
+        if (e.pointerType === 'pen' && e.buttons === 0 && e.pressure === 0) return;
+
         const coords = this.getCoordinates(e);
         
         if (this.mode === 'pointer') {
@@ -91,25 +115,71 @@ export class CanvasDrawing {
         else if (this.mode === 'erase') this.startErasing(coords);
     }
 
-    public handleMouseMove(e: React.MouseEvent | MouseEvent) {
-        const coords = this.getCoordinates(e);
+    public handlePointerMove(e: PointerEvent) {
+        if (!this.isActive && !['erase'].includes(this.mode)) return;
+        if (!this.isEventAllowed(e)) return;
+
+        const events = (e as any).getCoalescedEvents?.() || [e];
+        let needsRedraw = false;
         
-        if (this.resizingObjectId) {
-            this.updateObjectSize(coords);
-            return;
+        for (const ev of events) {
+            const coords = this.getCoordinates(ev);
+            
+            if (this.resizingObjectId) {
+                // Resize and Drag move their own objects and then call redraw
+                this.updateObjectSize(coords);
+            } else if (this.draggingObjectId) {
+                this.updateObjectPosition(coords);
+            } else if (this.mode === 'draw') {
+                // Draw is optimized: it just draws a line segment on top, no clear/redraw
+                this.draw(coords);
+            } else if (this.mode === 'select') {
+                // Select needs a redraw to show the marquee. 
+                // We'll update the logic to only redraw once after the loop.
+                this.updateSelectionNoRedraw(coords);
+                needsRedraw = true;
+            } else if (this.mode === 'erase') {
+                // Erase needs redraw to show traces disappearing.
+                if (this.eraseAtNoRedraw(coords)) needsRedraw = true;
+            }
         }
 
-        if (this.draggingObjectId) {
-            this.updateObjectPosition(coords);
-            return;
+        if (needsRedraw) {
+            this.redraw();
         }
-
-        if (this.mode === 'draw') this.draw(coords);
-        else if (this.mode === 'select') this.updateSelection(coords);
-        else if (this.mode === 'erase') this.eraseAt(coords);
     }
 
-    public handleMouseUp() {
+    private updateSelectionNoRedraw({ x, y }: { x: number, y: number }) {
+        if (!this.isActive || this.mode !== 'select') return;
+        this.selectionEnd = { x, y };
+        this.updateSelectedTraces();
+    }
+
+    private eraseAtNoRedraw({ x, y }: { x: number, y: number }): boolean {
+        if (!this.isActive || this.mode !== 'erase') return false;
+        const eraserSize = 10;
+        const initialTracesCount = this.traces.length;
+        this.traces = this.traces.filter(trace => 
+            !trace.some(([px, py]) => 
+                px >= x - eraserSize && px <= x + eraserSize && 
+                py >= y - eraserSize && py <= y + eraserSize
+            )
+        );
+
+        const initialObjectsCount = this.latexObjects.length;
+        this.latexObjects = this.latexObjects.filter(obj => 
+            !(x >= obj.x - 5 && x <= obj.x + obj.width + 5 && 
+              y >= obj.y - 5 && y <= obj.y + obj.height + 5)
+        );
+
+        if (this.traces.length !== initialTracesCount || this.latexObjects.length !== initialObjectsCount) {
+            this.redoStack = []; 
+            return true;
+        }
+        return false;
+    }
+
+    public handlePointerUp() {
         this.draggingObjectId = null;
         this.resizingObjectId = null;
 
@@ -118,36 +188,26 @@ export class CanvasDrawing {
         else this.isActive = false;
     }
 
-    public handleTouchStart(e: React.TouchEvent | TouchEvent) {
-        this.handleMouseDown(e as any);
-    }
-
-    public handleTouchMove(e: React.TouchEvent | TouchEvent) {
-        this.handleMouseMove(e as any);
-    }
-
-    public handleTouchEnd() {
-        this.handleMouseUp();
-    }
-
-    private getCoordinates(event: any): { x: number, y: number } {
+    private getCoordinates(event: PointerEvent): { x: number, y: number } {
         const rect = this.canvas.getBoundingClientRect();
-        const clientX = event.touches?.[0]?.clientX ?? event.changedTouches?.[0]?.clientX ?? event.clientX;
-        const clientY = event.touches?.[0]?.clientY ?? event.changedTouches?.[0]?.clientY ?? event.clientY;
-        return { x: clientX - rect.left, y: clientY - rect.top };
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
     }
 
     private startStroke({ x, y }: { x: number, y: number }) {
         this.isActive = true;
         this.currentTrace = [[x, y, 0]];
         this.startTime = Date.now();
-        this.ctx.beginPath();
-        this.ctx.moveTo(x, y);
     }
 
     private draw({ x, y }: { x: number, y: number }) {
-        if (!this.isActive || this.mode !== 'draw') return;
+        if (!this.isActive || this.mode !== 'draw' || this.currentTrace.length === 0) return;
+        
+        const lastPoint = this.currentTrace[this.currentTrace.length - 1];
         this.currentTrace.push([x, y, Date.now() - this.startTime]);
+        
+        // Only draw the NEW segment to keep performance constant regardless of stroke length
+        this.ctx.beginPath();
+        this.ctx.moveTo(lastPoint[0], lastPoint[1]);
         this.ctx.lineTo(x, y);
         this.ctx.stroke();
     }

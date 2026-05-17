@@ -11,8 +11,6 @@ export const ModeHint: React.FC<ModeHintProps> = ({ mode, icon, message }) => {
     const [shouldRender, setShouldRender] = useState(true);
 
     useEffect(() => {
-        // Reset state for new mode
-        setShouldRender(true);
         // Small delay to trigger entry animation
         const showTimer = setTimeout(() => setVisible(true), 10);
         
@@ -29,7 +27,7 @@ export const ModeHint: React.FC<ModeHintProps> = ({ mode, icon, message }) => {
             clearTimeout(hideTimer);
             clearTimeout(removeTimer);
         };
-    }, [mode]); // Re-run when mode changes
+    }, [mode, message]); // Re-run when mode or message changes
 
     if (!shouldRender) return null;
 

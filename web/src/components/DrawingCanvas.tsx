@@ -6,6 +6,7 @@ import katex from 'katex';
 interface DrawingCanvasProps {
     className?: string;
     mode?: CanvasMode;
+    penOnlyMode?: boolean;
     onSelectionComplete?: (traces: number[][][]) => void;
     onSelectionChange?: (count: number) => void;
 }
@@ -16,6 +17,7 @@ export interface DrawingCanvasHandle {
     getLatexObjects: () => LatexObject[];
     hasStrokes: () => boolean;
     setMode: (mode: CanvasMode) => void;
+    setPenOnlyMode: (enabled: boolean) => void;
     clearSelection: () => void;
     undo: () => void;
     redo: () => void;
@@ -30,6 +32,7 @@ export interface DrawingCanvasHandle {
 export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(({ 
     className, 
     mode = 'draw',
+    penOnlyMode = false,
     onSelectionComplete,
     onSelectionChange
 }, ref) => {
@@ -41,6 +44,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         if (canvasRef.current) {
             drawingRef.current = new CanvasDrawing(canvasRef.current);
             drawingRef.current.setMode(mode);
+            drawingRef.current.setPenOnlyMode(penOnlyMode);
             if (onSelectionComplete) drawingRef.current.setOnSelectionComplete(onSelectionComplete);
             if (onSelectionChange) drawingRef.current.setOnSelectionChange(onSelectionChange);
             
@@ -48,11 +52,18 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
             window.addEventListener('resize', handleResize);
             return () => window.removeEventListener('resize', handleResize);
         }
+        // These are intentionally empty to run once on mount. 
+        // Subsequent changes are handled by other effects.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
         drawingRef.current?.setMode(mode);
     }, [mode]);
+
+    useEffect(() => {
+        drawingRef.current?.setPenOnlyMode(penOnlyMode);
+    }, [penOnlyMode]);
 
     useEffect(() => {
         if (onSelectionComplete) drawingRef.current?.setOnSelectionComplete(onSelectionComplete);
@@ -77,6 +88,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         getLatexObjects: () => drawingRef.current?.getLatexObjects() || [],
         hasStrokes: () => drawingRef.current?.hasStrokes() || false,
         setMode: (m: CanvasMode) => drawingRef.current?.setMode(m),
+        setPenOnlyMode: (e: boolean) => drawingRef.current?.setPenOnlyMode(e),
         clearSelection: () => drawingRef.current?.clearSelection(),
         undo: () => drawingRef.current?.undo(),
         redo: () => drawingRef.current?.redo(),
@@ -101,33 +113,23 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         <div className={className} style={{ position: 'relative', overflow: 'hidden' }}>
             <canvas
                 ref={canvasRef}
+                draggable={false}
+                onContextMenu={(e) => e.preventDefault()}
                 style={{ touchAction: 'none', width: '100%', height: '100%', display: 'block' }}
-                onMouseDown={(e) => {
-                    drawingRef.current?.handleMouseDown(e);
+                onPointerDown={(e) => {
+                    drawingRef.current?.handlePointerDown(e.nativeEvent);
                     syncLatexObjects();
                 }}
-                onMouseMove={(e) => {
-                    drawingRef.current?.handleMouseMove(e);
+                onPointerMove={(e) => {
+                    drawingRef.current?.handlePointerMove(e.nativeEvent);
                     if (mode === 'pointer') syncLatexObjects();
                 }}
-                onMouseUp={() => {
-                    drawingRef.current?.handleMouseUp();
+                onPointerUp={() => {
+                    drawingRef.current?.handlePointerUp();
                     syncLatexObjects();
                 }}
-                onMouseLeave={() => {
-                    drawingRef.current?.handleMouseUp();
-                    syncLatexObjects();
-                }}
-                onTouchStart={(e) => {
-                    drawingRef.current?.handleTouchStart(e);
-                    syncLatexObjects();
-                }}
-                onTouchMove={(e) => {
-                    drawingRef.current?.handleTouchMove(e);
-                    if (mode === 'pointer') syncLatexObjects();
-                }}
-                onTouchEnd={() => {
-                    drawingRef.current?.handleTouchEnd();
+                onPointerLeave={() => {
+                    drawingRef.current?.handlePointerUp();
                     syncLatexObjects();
                 }}
             />
