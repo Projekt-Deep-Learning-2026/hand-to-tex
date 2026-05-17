@@ -10,6 +10,8 @@ interface DrawingCanvasProps {
     defaultFontSize?: number;
     onSelectionComplete?: (traces: number[][][]) => void;
     onSelectionChange?: (count: number) => void;
+    onToast?: (message: string) => void;
+    onEdit?: (obj: LatexObject) => void;
 }
 
 export interface DrawingCanvasHandle {
@@ -37,13 +39,13 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     penOnlyMode = false,
     defaultFontSize = 1.0,
     onSelectionComplete,
-    onSelectionChange
+    onSelectionChange,
+    onToast,
+    onEdit
 }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const drawingRef = useRef<CanvasDrawing | null>(null);
     const [latexObjects, setLatexObjects] = useState<LatexObject[]>([]);
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [editValue, setEditValue] = useState("");
 
     useEffect(() => {
         if (canvasRef.current) {
@@ -69,21 +71,66 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    useEffect(() => {
+        drawingRef.current?.setMode(mode);
+    }, [mode]);
+
+    useEffect(() => {
+        drawingRef.current?.setPenOnlyMode(penOnlyMode);
+    }, [penOnlyMode]);
+
+    useEffect(() => {
+        if (onSelectionComplete) drawingRef.current?.setOnSelectionComplete(onSelectionComplete);
+    }, [onSelectionComplete]);
+
+    useEffect(() => {
+        if (onSelectionChange) drawingRef.current?.setOnSelectionChange(onSelectionChange);
+    }, [onSelectionChange]);
+
     const handleCopy = (latex: string) => {
-        navigator.clipboard.writeText(latex).then(() => {
-            alert("Copied to clipboard!");
-        });
+        const textToCopy = latex;
+        
+        // Modern approach
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                onToast?.("Copied to clipboard!");
+            }).catch(err => {
+                console.error('Clipboard error:', err);
+                fallbackCopy(textToCopy);
+            });
+        } else {
+            fallbackCopy(textToCopy);
+        }
     };
 
-    const startEditing = (obj: LatexObject) => {
-        setEditingId(obj.id);
-        setEditValue(obj.latex);
+    const fallbackCopy = (text: string) => {
+        try {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            
+            // Ensure the textarea is not visible
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "0";
+            document.body.appendChild(textArea);
+            
+            textArea.focus();
+            textArea.select();
+            
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            if (successful) {
+                onToast?.("Copied to clipboard!");
+            }
+        } catch (err) {
+            console.error('Fallback copy error:', err);
+        }
     };
 
-    const saveEdit = () => {
-        if (editingId && drawingRef.current) {
-            drawingRef.current.updateLatexObject(editingId, editValue);
-            setEditingId(null);
+    const handleDelete = (id: string) => {
+        if (drawingRef.current?.deleteLatexObject(id)) {
+            onToast?.("Object deleted");
         }
     };
 
@@ -113,6 +160,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         setBackgroundImage: (i: HTMLImageElement | null) => drawingRef.current?.setBackgroundImage(i),
         updateLatexObject: (id: string, latex: string) => {
             drawingRef.current?.updateLatexObject(id, latex);
+        },
+        deleteLatexObject: (id: string) => {
+            drawingRef.current?.deleteLatexObject(id);
         }
     }));
 
@@ -146,7 +196,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                         top: obj.y,
                         width: obj.width,
                         height: obj.height,
-                        pointerEvents: mode === 'pointer' ? 'auto' : 'none',
+                        pointerEvents: 'none',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
@@ -155,44 +205,29 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                         color: 'black'
                     }}
                 >
-                    {editingId === obj.id ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', background: 'white', border: '1px solid #aa3bff', zIndex: 10 }}>
-                            <textarea 
-                                value={editValue} 
-                                onChange={(e) => setEditValue(e.target.value)}
-                                style={{ flexGrow: 1, border: 'none', padding: '5px', fontSize: '12px', resize: 'none' }}
-                            />
-                            <div style={{ display: 'flex', gap: '2px' }}>
-                                <button onClick={saveEdit} style={{ flexGrow: 1, fontSize: '10px', padding: '2px' }}>Save</button>
-                                <button onClick={() => setEditingId(null)} style={{ flexGrow: 1, fontSize: '10px', padding: '2px' }}>Cancel</button>
-                            </div>
+                    <div 
+                        style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        ref={(el) => {
+                            if (el) {
+                                katex.render(obj.latex, el, { 
+                                    throwOnError: false,
+                                    displayMode: true
+                                });
+                                const mathEl = el.querySelector('.katex-display');
+                                if (mathEl) {
+                                    (mathEl as HTMLElement).style.margin = '0';
+                                    (mathEl as HTMLElement).style.color = 'black';
+                                    (mathEl as HTMLElement).style.fontSize = `${Math.min(obj.width, obj.height) * 0.8 * defaultFontSize}px`;
+                                }
+                            }
+                        }}
+                    />
+                    {mode === 'pointer' && (
+                        <div className="object-actions" style={{ position: 'absolute', top: '-25px', right: 0, display: 'flex', gap: '5px', pointerEvents: 'auto' }}>
+                            <button onClick={() => handleCopy(obj.latex)} title="Copy TeX" style={{ padding: '2px 5px', fontSize: '10px', background: '#333', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Copy</button>
+                            <button onClick={() => onEdit?.(obj)} title="Edit TeX" style={{ padding: '2px 5px', fontSize: '10px', background: '#333', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Edit</button>
+                            <button onClick={() => handleDelete(obj.id)} title="Delete Object" style={{ padding: '2px 5px', fontSize: '10px', background: '#d32f2f', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Delete</button>
                         </div>
-                    ) : (
-                        <>
-                            <div 
-                                style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                ref={(el) => {
-                                    if (el) {
-                                        katex.render(obj.latex, el, { 
-                                            throwOnError: false,
-                                            displayMode: true
-                                        });
-                                        const mathEl = el.querySelector('.katex-display');
-                                        if (mathEl) {
-                                            (mathEl as HTMLElement).style.margin = '0';
-                                            (mathEl as HTMLElement).style.color = 'black';
-                                            (mathEl as HTMLElement).style.fontSize = `${Math.min(obj.width, obj.height) * 0.8 * defaultFontSize}px`;
-                                        }
-                                    }
-                                }}
-                            />
-                            {mode === 'pointer' && (
-                                <div className="object-actions" style={{ position: 'absolute', top: '-25px', right: 0, display: 'flex', gap: '5px' }}>
-                                    <button onClick={() => handleCopy(obj.latex)} title="Copy TeX" style={{ padding: '2px 5px', fontSize: '10px', background: '#333', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Copy</button>
-                                    <button onClick={() => startEditing(obj)} title="Edit TeX" style={{ padding: '2px 5px', fontSize: '10px', background: '#333', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Edit</button>
-                                </div>
-                            )}
-                        </>
                     )}
                 </div>
             ))}

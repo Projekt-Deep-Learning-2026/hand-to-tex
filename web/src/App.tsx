@@ -8,26 +8,26 @@ import html2canvas from 'html2canvas';
 import { useModel } from './hooks/useModel';
 import { DrawingCanvas } from './components/DrawingCanvas';
 import type { DrawingCanvasHandle } from './components/DrawingCanvas';
-import type { CanvasMode } from './logic/canvas';
+import type { CanvasMode, LatexObject } from './logic/canvas';
 import { extractFeatures } from './logic/inference';
 import { Home } from './components/Home';
 import { SelectionWindow } from './components/SelectionWindow';
-import { ModeHint } from './components/ModeHint';
+import { Toast } from './components/Toast';
+import { EditModal } from './components/EditModal';
 
-type View = 'home' | 'demo' | 'whiteboard';
+type View = 'home' | 'whiteboard';
 
 const MODE_DETAILS: Record<CanvasMode, { icon: string, message: string }> = {
-    draw: { icon: '✏️', message: 'Draw with your mouse or pen' },
-    select: { icon: '🔍', message: 'Drag to select traces for recognition' },
-    erase: { icon: '🧹', message: 'Click or drag over traces to erase' },
-    pointer: { icon: '🎯', message: 'Click and drag objects to move or resize' }
+    draw: { icon: '✏️', message: 'Draw Mode Active' },
+    select: { icon: '🔍', message: 'Select Mode Active' },
+    erase: { icon: '🧹', message: 'Erase Mode Active' },
+    pointer: { icon: '🎯', message: 'Pointer Mode Active' }
 };
 
 function App() {
     const [view, setView] = useState<View>('home');
     const [canvasMode, setCanvasMode] = useState<CanvasMode>('draw');
     const [penOnlyMode, setPenOnlyMode] = useState<boolean>(false);
-    const [defaultFontSize, setDefaultFontSize] = useState<number>(1.0);
     const [selectedLatex, setSelectedLatex] = useState<string | null>(null);
     const [isSelectionProcessing, setIsSelectionProcessing] = useState(false);
     const [isSelectionWindowVisible, setIsSelectionWindowVisible] = useState(false);
@@ -35,6 +35,8 @@ function App() {
     const [isProcessing, setIsProcessing] = useState<boolean>(false);
     const [initialProjectData, setInitialProjectData] = useState<{traces?: number[][][], latexObjects?: LatexObject[]} | null>(null);
     const [showTutorial, setShowTutorial] = useState(false);
+    const [toast, setToast] = useState<string | null>(null);
+    const [editingObject, setEditingObject] = useState<LatexObject | null>(null);
 
     const canvasRef = useRef<DrawingCanvasHandle>(null);
     const selectionPreviewRef = useRef<HTMLDivElement>(null);
@@ -125,20 +127,32 @@ function App() {
         setSelectedLatex(null);
         setNumSelectedTraces(0);
         setIsSelectionWindowVisible(false);
+        setToast("Whiteboard cleared");
     };
 
     const navigateToView = (v: View) => {
         setView(v);
-        changeCanvasMode('draw');
+        changeCanvasMode('draw', false); // Don't toast when navigating home
         if (modelStatus !== 'success') loadModel();
     };
 
-    const changeCanvasMode = (mode: CanvasMode) => {
+    const changeCanvasMode = (mode: CanvasMode, showToast = true) => {
         setCanvasMode(mode);
         setSelectedLatex(null);
         setNumSelectedTraces(0);
         setIsSelectionWindowVisible(false);
         canvasRef.current?.clearSelection();
+        if (showToast) {
+            setToast(MODE_DETAILS[mode].message);
+        }
+    };
+
+    const handleEditSave = (newLatex: string) => {
+        if (editingObject && canvasRef.current) {
+            canvasRef.current.updateLatexObject(editingObject.id, newLatex);
+            setEditingObject(null);
+            setToast("LaTeX updated");
+        }
     };
 
     const handleSaveToFile = () => {
@@ -165,6 +179,7 @@ function App() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        setToast("Project saved");
     };
 
     const handleLoadProject = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -187,8 +202,9 @@ function App() {
                 } else {
                     if (data.traces) canvasRef.current?.setTraces(data.traces);
                     if (data.latexObjects) canvasRef.current?.setLatexObjects(data.latexObjects);
-                    changeCanvasMode('draw');
+                    changeCanvasMode('draw', false);
                 }
+                setToast("Project loaded");
             } catch (err) {
                 alert("Error loading project: " + (err as Error).message);
             }
@@ -219,6 +235,7 @@ function App() {
             });
             pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
             pdf.save(fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`);
+            setToast("PDF exported");
         } catch (err) {
             alert("Error exporting PDF: " + (err as Error).message);
         } finally {
@@ -227,58 +244,6 @@ function App() {
         }
     };
 
-    const renderDemo = () => (
-        <div className="view-container">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <button className="back-button" onClick={() => navigateToView('home')} style={{ marginBottom: 0 }}>← Back to Home</button>
-                <button className="mini" onClick={() => setShowTutorial(true)} style={{ borderRadius: '50%', width: '32px', height: '32px', padding: 0, fontSize: '18px' }}>ℹ️</button>
-            </div>
-                        <h1>Interactive Demo</h1>
-            <section className="card">
-                <h3>Model Status</h3>
-                <p className="status" style={{ color: modelStatus === 'success' ? 'green' : modelStatus === 'error' ? 'red' : 'inherit' }}>{modelProgress}</p>
-                {modelStatus !== 'success' && <button onClick={loadModel} disabled={modelStatus === 'loading'}>{modelStatus === 'loading' ? 'Loading...' : 'Load Models'}</button>}
-            </section>
-            <section className="card">
-                <div className="section-header">
-                    <h3>Draw Expression</h3>
-                    {renderModeToggle()}
-                </div>
-                <DrawingCanvas 
-                    ref={canvasRef} 
-                    className="drawing-canvas" 
-                    mode={canvasMode} 
-                    penOnlyMode={penOnlyMode}
-                    defaultFontSize={defaultFontSize}
-                    onSelectionComplete={handleSelectionRecognize}
-                    onSelectionChange={setNumSelectedTraces}
-                />
-            </section>
-            {canvasMode === 'select' && isSelectionWindowVisible && (
-                <SelectionWindow 
-                    latex={selectedLatex}
-                    isProcessing={isSelectionProcessing}
-                    numSelectedTraces={numSelectedTraces}
-                    onReplace={handleReplace}
-                    onClose={() => { 
-                        setSelectedLatex(null); 
-                        setIsSelectionWindowVisible(false);
-                        canvasRef.current?.clearSelection(); 
-                    }}
-                    selectionPreviewRef={selectionPreviewRef}
-                />
-            )}
-            <ModeHint 
-                key={`${canvasMode}-${penOnlyMode}`} 
-                mode={canvasMode} 
-                icon={MODE_DETAILS[canvasMode].icon} 
-                message={penOnlyMode && ['draw', 'select', 'erase'].includes(canvasMode) 
-                    ? `Pen Only Mode Active: ${MODE_DETAILS[canvasMode].message}` 
-                    : MODE_DETAILS[canvasMode].message} 
-            />
-        </div>
-    );
-
     const renderWhiteboard = () => (
         <div className="whiteboard-container">
             <div className="whiteboard-header">
@@ -286,6 +251,14 @@ function App() {
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                 </button>
                 <div className="whiteboard-title">Whiteboard</div>
+                <div className={`model-status-indicator ${modelStatus}`} title={modelProgress}>
+                    <span className="dot"></span>
+                    <span className="label">
+                        {modelStatus === 'success' ? 'Ready' : 
+                         modelStatus === 'loading' ? modelProgress.replace('Loading ', '') : 
+                         modelStatus === 'error' ? 'Error' : 'Offline'}
+                    </span>
+                </div>
                 <div style={{ flexGrow: 1 }}></div>
                 {renderModeToggle(true)}
                 <div style={{ flexGrow: 1 }}></div>
@@ -308,9 +281,10 @@ function App() {
                         className="whiteboard-canvas" 
                         mode={canvasMode} 
                         penOnlyMode={penOnlyMode}
-                        defaultFontSize={defaultFontSize}
                         onSelectionComplete={handleSelectionRecognize} 
                         onSelectionChange={setNumSelectedTraces}
+                        onToast={(m) => setToast(m)}
+                        onEdit={(obj) => setEditingObject(obj)}
                     />
                 </div>
             </div>
@@ -319,6 +293,7 @@ function App() {
                 <SelectionWindow 
                     latex={selectedLatex}
                     isProcessing={isSelectionProcessing}
+                    isModelReady={modelStatus === 'success'}
                     numSelectedTraces={numSelectedTraces}
                     onReplace={handleReplace}
                     onClose={() => { 
@@ -329,14 +304,6 @@ function App() {
                     selectionPreviewRef={selectionPreviewRef}
                 />
             )}
-            <ModeHint 
-                key={`${canvasMode}-${penOnlyMode}`} 
-                mode={canvasMode} 
-                icon={MODE_DETAILS[canvasMode].icon} 
-                message={penOnlyMode && ['draw', 'select', 'erase'].includes(canvasMode) 
-                    ? `Pen Only Mode Active: ${MODE_DETAILS[canvasMode].message}` 
-                    : MODE_DETAILS[canvasMode].message} 
-            />
         </div>
     );
 
@@ -385,21 +352,6 @@ function App() {
                 {!mini && <span>Pen Only</span>}
             </button>
             <div className="separator"></div>
-            <div className="font-size-setting" title="Default Font Size for TeX" style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 10px', color: '#eee', fontSize: '12px' }}>
-                {!mini && <span>Font Size:</span>}
-                <select 
-                    value={defaultFontSize} 
-                    onChange={(e) => setDefaultFontSize(parseFloat(e.target.value))}
-                    style={{ background: '#333', color: '#eee', border: '1px solid #444', borderRadius: '4px', padding: '2px' }}
-                >
-                    <option value="0.5">XS</option>
-                    <option value="0.8">S</option>
-                    <option value="1.0">M</option>
-                    <option value="1.5">L</option>
-                    <option value="2.0">XL</option>
-                </select>
-            </div>
-            <div className="separator"></div>
             <button onClick={() => canvasRef.current?.undo()} title="Undo (Ctrl + Z)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"></path></svg>
                 {!mini && <span>Undo</span>}
@@ -419,7 +371,6 @@ function App() {
     return (
         <div className="app-container">
             {view === 'home' && <Home onSelectView={navigateToView} onLoadProject={handleLoadProject} />}
-            {view === 'demo' && renderDemo()}
             {view === 'whiteboard' && renderWhiteboard()}
 
             {showTutorial && (
@@ -435,6 +386,16 @@ function App() {
                         <button className="primary close-tutorial" onClick={() => setShowTutorial(false)}>Got it!</button>
                     </div>
                 </div>
+            )}
+
+            {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+            
+            {editingObject && (
+                <EditModal 
+                    initialLatex={editingObject.latex}
+                    onSave={handleEditSave}
+                    onCancel={() => setEditingObject(null)}
+                />
             )}
         </div>
     );

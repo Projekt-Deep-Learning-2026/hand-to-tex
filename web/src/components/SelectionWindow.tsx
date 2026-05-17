@@ -3,6 +3,7 @@ import React from 'react';
 interface SelectionWindowProps {
     latex: string | null;
     isProcessing: boolean;
+    isModelReady: boolean;
     onReplace: () => void;
     onClose: () => void;
     selectionPreviewRef: React.RefObject<HTMLDivElement | null>;
@@ -12,6 +13,7 @@ interface SelectionWindowProps {
 export const SelectionWindow: React.FC<SelectionWindowProps> = ({
     latex,
     isProcessing,
+    isModelReady,
     onReplace,
     onClose,
     selectionPreviewRef,
@@ -39,7 +41,7 @@ export const SelectionWindow: React.FC<SelectionWindowProps> = ({
                         <button 
                             className="replace-btn primary" 
                             onClick={onReplace}
-                            disabled={['...', 'Error'].includes(latex)}
+                            disabled={!isModelReady || ['...', 'Error', 'Models not loaded.'].includes(latex)}
                         >
                             Replace Selected Traces
                         </button>

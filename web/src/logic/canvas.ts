@@ -352,18 +352,36 @@ export class CanvasDrawing {
         const dpr = window.devicePixelRatio || 1;
         this.ctx.drawImage(this.offscreenCanvas, 0, 0, this.canvas.width / dpr, this.canvas.height / dpr);
 
-        if (this.mode === 'select' && this.selectionStart && this.selectionEnd) {
-            const x1 = Math.min(this.selectionStart.x, this.selectionEnd.x);
-            const y1 = Math.min(this.selectionStart.y, this.selectionEnd.y);
-            const w = Math.abs(this.selectionStart.x - this.selectionEnd.x);
-            const h = Math.abs(this.selectionStart.y - this.selectionEnd.y);
-            this.ctx.setLineDash([5, 5]);
-            this.ctx.strokeStyle = '#007BFF';
-            this.ctx.lineWidth = 1;
-            this.ctx.strokeRect(x1, y1, w, h);
-            this.ctx.fillStyle = 'rgba(0, 123, 255, 0.05)';
-            this.ctx.fillRect(x1, y1, w, h);
-            this.ctx.setLineDash([]);
+        if (this.mode === 'select') {
+            // Draw highlight for selected traces on top of the static buffer
+            if (this.selectedTraceIndices.size > 0) {
+                this.ctx.save();
+                this.ctx.strokeStyle = '#aa3bff';
+                this.ctx.lineWidth = 3;
+                this.selectedTraceIndices.forEach(index => {
+                    const trace = this.traces[index];
+                    if (trace.length < 2) return;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(trace[0][0], trace[0][1]);
+                    for (let i = 1; i < trace.length; i++) this.ctx.lineTo(trace[i][0], trace[i][1]);
+                    this.ctx.stroke();
+                });
+                this.ctx.restore();
+            }
+
+            if (this.selectionStart && this.selectionEnd) {
+                const x1 = Math.min(this.selectionStart.x, this.selectionEnd.x);
+                const y1 = Math.min(this.selectionStart.y, this.selectionEnd.y);
+                const w = Math.abs(this.selectionStart.x - this.selectionEnd.x);
+                const h = Math.abs(this.selectionStart.y - this.selectionEnd.y);
+                this.ctx.setLineDash([5, 5]);
+                this.ctx.strokeStyle = '#007BFF';
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeRect(x1, y1, w, h);
+                this.ctx.fillStyle = 'rgba(0, 123, 255, 0.05)';
+                this.ctx.fillRect(x1, y1, w, h);
+                this.ctx.setLineDash([]);
+            }
         }
 
         if (this.mode === 'pointer') {
@@ -473,6 +491,17 @@ export class CanvasDrawing {
             this.onObjectsChange?.([...this.latexObjects]);
             this.redraw();
         }
+    }
+
+    public deleteLatexObject(id: string) {
+        const initialCount = this.latexObjects.length;
+        this.latexObjects = this.latexObjects.filter(o => o.id !== id);
+        if (this.latexObjects.length !== initialCount) {
+            this.onObjectsChange?.([...this.latexObjects]);
+            this.redraw();
+            return true;
+        }
+        return false;
     }
 
     public getLatexObjects() { return this.latexObjects; }
