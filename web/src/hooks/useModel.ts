@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import * as ort from 'onnxruntime-web';
-import { loadVocab, ENCODER_URL, DECODER_URL } from '../logic/inference';
+import { loadVocab, ENCODER_URL, DECODER_URL, runInference } from '../logic/inference';
 
 export interface ModelState {
     encoderSession: ort.InferenceSession | null;
@@ -10,7 +10,6 @@ export interface ModelState {
     error: string | null;
     progress: string;
 }
-
 
 export function useModel() {
     const [state, setState] = useState<ModelState>({
@@ -52,5 +51,25 @@ export function useModel() {
         }
     };
 
-    return { ...state, load };
+    const recognize = async (
+        flatData: Float32Array,
+        numPoints: number,
+        numFeatures: number
+    ): Promise<number[]> => {
+        if (!state.encoderSession || !state.decoderSession || !state.vocab) {
+            throw new Error("Models not ready");
+        }
+
+        return runInference(
+            state.encoderSession,
+            state.decoderSession,
+            flatData,
+            numPoints,
+            numFeatures,
+            state.vocab.SOS_IDX,
+            state.vocab.EOS_IDX
+        );
+    };
+
+    return { ...state, load, recognize };
 }

@@ -9,7 +9,7 @@ import { useModel } from './hooks/useModel';
 import { DrawingCanvas } from './components/DrawingCanvas';
 import type { DrawingCanvasHandle } from './components/DrawingCanvas';
 import type { CanvasMode } from './logic/canvas';
-import { extractFeatures, runInference } from './logic/inference';
+import { extractFeatures } from './logic/inference';
 import { Home } from './components/Home';
 import { SelectionWindow } from './components/SelectionWindow';
 import { ModeHint } from './components/ModeHint';
@@ -32,19 +32,25 @@ function App() {
     const [isSelectionWindowVisible, setIsSelectionWindowVisible] = useState(false);
     const [numSelectedTraces, setNumSelectedTraces] = useState(0);
     const [isProcessing, setIsProcessing] = useState<boolean>(false);
-    const [initialProjectData, setInitialProjectData] = useState<any>(null);
+    const [initialProjectData, setInitialProjectData] = useState<{traces?: number[][][], latexObjects?: unknown[]} | null>(null);
     const [showTutorial, setShowTutorial] = useState(false);
 
     const canvasRef = useRef<DrawingCanvasHandle>(null);
     const selectionPreviewRef = useRef<HTMLDivElement>(null);
     const whiteboardWrapperRef = useRef<HTMLDivElement>(null);
 
-    const { status, progress, load, encoderSession, decoderSession, vocab } = useModel();
+    const { 
+        status: modelStatus, 
+        progress: modelProgress, 
+        load: loadModel, 
+        vocab,
+        recognize
+    } = useModel();
 
     useEffect(() => {
         const root = document.getElementById('root');
         if (!root) return;
-        view === 'whiteboard' ? root.classList.add('full-width') : root.classList.remove('full-width');
+        root.classList.toggle('full-width', view === 'whiteboard');
     }, [view]);
 
     useEffect(() => {
@@ -73,20 +79,17 @@ function App() {
     }, []);
 
     const performInference = useCallback(async (traces: number[][][]) => {
-        if (!encoderSession || !decoderSession || !vocab) return "Models not loaded.";
+        if (modelStatus !== 'success' || !vocab) return "Models not loaded.";
         const { flatData, numPoints, numFeatures } = extractFeatures(traces);
         if (numPoints === 0) throw new Error("No valid drawing data captured.");
 
-        const tokenIds = await runInference(
-            encoderSession, decoderSession, flatData, numPoints, numFeatures,
-            vocab.SOS_IDX, vocab.EOS_IDX
-        );
+        const tokenIds = await recognize(flatData, numPoints, numFeatures);
 
         return tokenIds
             .filter(id => id !== vocab.PAD_IDX && id !== vocab.SOS_IDX)
             .map(id => vocab.id2token[id])
             .join(" ");
-    }, [encoderSession, decoderSession, vocab]);
+    }, [modelStatus, vocab, recognize]);
 
     const handleSelectionRecognize = useCallback(async (traces: number[][][]) => {
         setIsSelectionProcessing(true);
@@ -95,7 +98,7 @@ function App() {
         try {
             const result = await performInference(traces);
             setSelectedLatex(result || " ");
-        } catch (err) {
+        } catch {
             setSelectedLatex("Error");
         } finally {
             setIsSelectionProcessing(false);
@@ -126,7 +129,7 @@ function App() {
     const navigateToView = (v: View) => {
         setView(v);
         changeCanvasMode('draw');
-        if (status !== 'success') load();
+        if (modelStatus !== 'success') loadModel();
     };
 
     const changeCanvasMode = (mode: CanvasMode) => {
@@ -229,11 +232,11 @@ function App() {
                 <button className="back-button" onClick={() => navigateToView('home')} style={{ marginBottom: 0 }}>← Back to Home</button>
                 <button className="mini" onClick={() => setShowTutorial(true)} style={{ borderRadius: '50%', width: '32px', height: '32px', padding: 0, fontSize: '18px' }}>ℹ️</button>
             </div>
-            <h1>Interactive Demo</h1>
+                        <h1>Interactive Demo</h1>
             <section className="card">
                 <h3>Model Status</h3>
-                <p className="status" style={{ color: status === 'success' ? 'green' : status === 'error' ? 'red' : 'inherit' }}>{progress}</p>
-                {status !== 'success' && <button onClick={load} disabled={status === 'loading'}>{status === 'loading' ? 'Loading...' : 'Load Models'}</button>}
+                <p className="status" style={{ color: modelStatus === 'success' ? 'green' : modelStatus === 'error' ? 'red' : 'inherit' }}>{modelProgress}</p>
+                {modelStatus !== 'success' && <button onClick={loadModel} disabled={modelStatus === 'loading'}>{modelStatus === 'loading' ? 'Loading...' : 'Load Models'}</button>}
             </section>
             <section className="card">
                 <div className="section-header">

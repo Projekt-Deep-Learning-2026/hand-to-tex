@@ -16,11 +16,11 @@ export const ModeHint: React.FC<ModeHintProps> = ({ mode, icon, message }) => {
         
         const hideTimer = setTimeout(() => {
             setVisible(false);
-        }, 5000);
+        }, 1500);
 
         const removeTimer = setTimeout(() => {
             setShouldRender(false);
-        }, 5500); // Wait for fade animation (0.5s)
+        }, 2000); // Wait for fade animation (0.5s)
 
         return () => {
             clearTimeout(showTimer);

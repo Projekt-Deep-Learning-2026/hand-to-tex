@@ -48,6 +48,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
             if (onSelectionComplete) drawingRef.current.setOnSelectionComplete(onSelectionComplete);
             if (onSelectionChange) drawingRef.current.setOnSelectionChange(onSelectionChange);
             
+            drawingRef.current.setOnObjectsChange((objects) => {
+                setLatexObjects([...objects]);
+            });
+
             const handleResize = () => drawingRef.current?.resize();
             window.addEventListener('resize', handleResize);
             return () => window.removeEventListener('resize', handleResize);
@@ -73,16 +77,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         if (onSelectionChange) drawingRef.current?.setOnSelectionChange(onSelectionChange);
     }, [onSelectionChange]);
 
-    const syncLatexObjects = () => {
-        if (drawingRef.current) {
-            setLatexObjects([...drawingRef.current.getLatexObjects()]);
-        }
-    };
-
     useImperativeHandle(ref, () => ({
         clear: () => {
             drawingRef.current?.clear();
-            setLatexObjects([]);
         },
         getTraces: () => drawingRef.current?.getTraces() || [],
         getLatexObjects: () => drawingRef.current?.getLatexObjects() || [],
@@ -95,16 +92,13 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         canRedo: () => drawingRef.current?.canRedo() || false,
         replaceSelectedWithLatex: (latex: string) => {
             drawingRef.current?.replaceSelectedWithLatex(latex);
-            syncLatexObjects();
         },
         replaceAllWithLatex: (latex: string) => {
             drawingRef.current?.replaceAllWithLatex(latex);
-            syncLatexObjects();
         },
         setTraces: (t: number[][][]) => drawingRef.current?.setTraces(t),
         setLatexObjects: (o: LatexObject[]) => {
             drawingRef.current?.setLatexObjects(o);
-            setLatexObjects(o);
         },
         setBackgroundImage: (i: HTMLImageElement | null) => drawingRef.current?.setBackgroundImage(i)
     }));
@@ -118,19 +112,15 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                 style={{ touchAction: 'none', width: '100%', height: '100%', display: 'block' }}
                 onPointerDown={(e) => {
                     drawingRef.current?.handlePointerDown(e.nativeEvent);
-                    syncLatexObjects();
                 }}
                 onPointerMove={(e) => {
                     drawingRef.current?.handlePointerMove(e.nativeEvent);
-                    if (mode === 'pointer') syncLatexObjects();
                 }}
                 onPointerUp={() => {
                     drawingRef.current?.handlePointerUp();
-                    syncLatexObjects();
                 }}
                 onPointerLeave={() => {
                     drawingRef.current?.handlePointerUp();
-                    syncLatexObjects();
                 }}
             />
             {latexObjects.map(obj => (
