@@ -466,6 +466,15 @@ export class CanvasDrawing {
         return newObj;
     }
 
+    public updateLatexObject(id: string, latex: string) {
+        const obj = this.latexObjects.find(o => o.id === id);
+        if (obj) {
+            obj.latex = latex;
+            this.onObjectsChange?.([...this.latexObjects]);
+            this.redraw();
+        }
+    }
+
     public getLatexObjects() { return this.latexObjects; }
     public clearSelection() {
         this.selectionStart = null;
@@ -510,5 +519,18 @@ export class CanvasDrawing {
             this.setupCanvas();
             this.redraw();
         }
+    }
+
+    public dispose() {
+        // Clear references and remove the offscreen canvas from memory
+        this.offscreenCanvas.width = 0;
+        this.offscreenCanvas.height = 0;
+        
+        // We use casting to null to help GC even if the TS types say they are non-nullable
+        // as this instance is now being discarded.
+        (this.offscreenCanvas as unknown) = null;
+        (this.offscreenCtx as unknown) = null;
+        (this.canvas as unknown) = null;
+        (this.ctx as unknown) = null;
     }
 }

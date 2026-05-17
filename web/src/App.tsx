@@ -27,12 +27,13 @@ function App() {
     const [view, setView] = useState<View>('home');
     const [canvasMode, setCanvasMode] = useState<CanvasMode>('draw');
     const [penOnlyMode, setPenOnlyMode] = useState<boolean>(false);
+    const [defaultFontSize, setDefaultFontSize] = useState<number>(1.0);
     const [selectedLatex, setSelectedLatex] = useState<string | null>(null);
     const [isSelectionProcessing, setIsSelectionProcessing] = useState(false);
     const [isSelectionWindowVisible, setIsSelectionWindowVisible] = useState(false);
     const [numSelectedTraces, setNumSelectedTraces] = useState(0);
     const [isProcessing, setIsProcessing] = useState<boolean>(false);
-    const [initialProjectData, setInitialProjectData] = useState<{traces?: number[][][], latexObjects?: unknown[]} | null>(null);
+    const [initialProjectData, setInitialProjectData] = useState<{traces?: number[][][], latexObjects?: LatexObject[]} | null>(null);
     const [showTutorial, setShowTutorial] = useState(false);
 
     const canvasRef = useRef<DrawingCanvasHandle>(null);
@@ -248,6 +249,7 @@ function App() {
                     className="drawing-canvas" 
                     mode={canvasMode} 
                     penOnlyMode={penOnlyMode}
+                    defaultFontSize={defaultFontSize}
                     onSelectionComplete={handleSelectionRecognize}
                     onSelectionChange={setNumSelectedTraces}
                 />
@@ -306,6 +308,7 @@ function App() {
                         className="whiteboard-canvas" 
                         mode={canvasMode} 
                         penOnlyMode={penOnlyMode}
+                        defaultFontSize={defaultFontSize}
                         onSelectionComplete={handleSelectionRecognize} 
                         onSelectionChange={setNumSelectedTraces}
                     />
@@ -381,6 +384,21 @@ function App() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path></svg>
                 {!mini && <span>Pen Only</span>}
             </button>
+            <div className="separator"></div>
+            <div className="font-size-setting" title="Default Font Size for TeX" style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 10px', color: '#eee', fontSize: '12px' }}>
+                {!mini && <span>Font Size:</span>}
+                <select 
+                    value={defaultFontSize} 
+                    onChange={(e) => setDefaultFontSize(parseFloat(e.target.value))}
+                    style={{ background: '#333', color: '#eee', border: '1px solid #444', borderRadius: '4px', padding: '2px' }}
+                >
+                    <option value="0.5">XS</option>
+                    <option value="0.8">S</option>
+                    <option value="1.0">M</option>
+                    <option value="1.5">L</option>
+                    <option value="2.0">XL</option>
+                </select>
+            </div>
             <div className="separator"></div>
             <button onClick={() => canvasRef.current?.undo()} title="Undo (Ctrl + Z)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"></path></svg>
