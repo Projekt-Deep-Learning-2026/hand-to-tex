@@ -1,10 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import * as ort from 'onnxruntime-web';
 import { loadVocab, ENCODER_URL, DECODER_URL, runInference } from '../logic/inference';
 
 export interface ModelState {
-    encoderSession: ort.InferenceSession | null;
-    decoderSession: ort.InferenceSession | null;
     vocab: { id2token: string[], PAD_IDX: number, SOS_IDX: number, EOS_IDX: number } | null;
     status: 'idle' | 'loading' | 'success' | 'error';
     error: string | null;
@@ -13,28 +11,55 @@ export interface ModelState {
 
 export function useModel() {
     const [state, setState] = useState<ModelState>({
-        encoderSession: null,
-        decoderSession: null,
         vocab: null,
         status: 'idle',
         error: null,
         progress: 'Waiting to load...'
     });
 
+    const encoderRef = useRef<ort.InferenceSession | null>(null);
+    const decoderRef = useRef<ort.InferenceSession | null>(null);
+
+    const releaseSessions = useCallback(async () => {
+        if (encoderRef.current) {
+            try { await (encoderRef.current as any).handler?.dispose(); } catch {} // Deep cleanup if available
+            encoderRef.current = null;
+        }
+        if (decoderRef.current) {
+            try { await (decoderRef.current as any).handler?.dispose(); } catch {}
+            decoderRef.current = null;
+        }
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            // Cleanup on unmount
+            if (encoderRef.current) (encoderRef.current as any).handler?.dispose();
+            if (decoderRef.current) (decoderRef.current as any).handler?.dispose();
+        };
+    }, []);
+
     const load = async () => {
+        if (state.status === 'loading') return;
+        
         setState(prev => ({ ...prev, status: 'loading', progress: 'Loading vocabulary...' }));
+        
         try {
+            await releaseSessions();
             const vocab = await loadVocab();
 
+            const sessionOptions: ort.InferenceSession.SessionOptions = {
+                executionProviders: ['wasm'],
+                graphOptimizationLevel: 'all'
+            };
+
             setState(prev => ({ ...prev, progress: 'Loading encoder...' }));
-            const encoderSession = await ort.InferenceSession.create(ENCODER_URL, { executionProviders: ['wasm'] });
+            encoderRef.current = await ort.InferenceSession.create(ENCODER_URL, sessionOptions);
 
             setState(prev => ({ ...prev, progress: 'Loading decoder...' }));
-            const decoderSession = await ort.InferenceSession.create(DECODER_URL, { executionProviders: ['wasm'] });
+            decoderRef.current = await ort.InferenceSession.create(DECODER_URL, sessionOptions);
 
             setState({
-                encoderSession,
-                decoderSession,
                 vocab,
                 status: 'success',
                 error: null,
@@ -56,13 +81,13 @@ export function useModel() {
         numPoints: number,
         numFeatures: number
     ): Promise<number[]> => {
-        if (!state.encoderSession || !state.decoderSession || !state.vocab) {
+        if (!encoderRef.current || !decoderRef.current || !state.vocab) {
             throw new Error("Models not ready");
         }
 
         return runInference(
-            state.encoderSession,
-            state.decoderSession,
+            encoderRef.current,
+            decoderRef.current,
             flatData,
             numPoints,
             numFeatures,
@@ -71,5 +96,10 @@ export function useModel() {
         );
     };
 
-    return { ...state, load, recognize };
+    return { 
+        ...state, 
+        load, 
+        recognize,
+        isReady: state.status === 'success' && !!encoderRef.current && !!decoderRef.current
+    };
 }

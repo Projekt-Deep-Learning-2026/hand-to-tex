@@ -202,7 +202,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                         alignItems: 'center',
                         justifyContent: 'center',
                         userSelect: 'none',
-                        color: 'black'
+                        color: 'black',
+                        border: mode === 'pointer' ? '1px dashed rgba(170, 59, 255, 0.3)' : 'none'
                     }}
                 >
                     <div 
@@ -217,7 +218,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                                 if (mathEl) {
                                     (mathEl as HTMLElement).style.margin = '0';
                                     (mathEl as HTMLElement).style.color = 'black';
-                                    (mathEl as HTMLElement).style.fontSize = `${Math.min(obj.width, obj.height) * 0.8 * defaultFontSize}px`;
+                                    (mathEl as HTMLElement).style.fontSize = `${Math.min(obj.width, obj.height) * 0.8}px`;
                                 }
                             }
                         }}
