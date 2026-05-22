@@ -1,3 +1,9 @@
+"""Integration tests for the data loading pipeline.
+
+Verifies that raw InkML and preprocessed PT files correctly flow through
+Datasets, CollateFunctions, and DataLoaders into correctly shaped batches.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,9 +17,11 @@ from hand_to_tex.datasets import (
     HMEDatasetRaw,
     HMELightningDataModule,
 )
+from hand_to_tex.utils import LatexVocab
 
 
 def _prepare_inkml_splits(tmp_path: Path, sample_inkml: Path, n_per_split: int = 2) -> Path:
+    """Helper to create a temporary directory with InkML files organized by split."""
     root = tmp_path / "raw"
     content = sample_inkml.read_text(encoding="utf-8")
     for split in ("train", "valid", "test"):
@@ -25,7 +33,12 @@ def _prepare_inkml_splits(tmp_path: Path, sample_inkml: Path, n_per_split: int =
 
 
 class TestDataLoadingPipelineRaw:
-    def test_inkml_to_batch_roundtrip(self, tmp_path: Path, sample_inkml: Path, vocab):
+    """Integration tests for the raw (InkML) data loading path."""
+
+    def test_inkml_to_batch_roundtrip(
+        self, tmp_path: Path, sample_inkml: Path, vocab: LatexVocab
+    ) -> None:
+        """InkML files must be correctly loaded and collated into training batches."""
         root = _prepare_inkml_splits(tmp_path, sample_inkml, n_per_split=2)
 
         factory = HMEDataLoaderFactory(
@@ -50,7 +63,10 @@ class TestDataLoadingPipelineRaw:
         assert (ft_lengths <= padded_ft.shape[1]).all()
         assert (ts_lengths <= padded_ts.shape[1]).all()
 
-    def test_dataset_collate_compose_consistently(self, tmp_path: Path, sample_inkml: Path, vocab):
+    def test_dataset_collate_compose_consistently(
+        self, tmp_path: Path, sample_inkml: Path, vocab: LatexVocab
+    ) -> None:
+        """Datasets and CollateFunctions must work together to produce valid batches."""
         root = _prepare_inkml_splits(tmp_path, sample_inkml, n_per_split=3)
         ds = HMEDatasetRaw(root=root, split="train", vocab=vocab)
         collate = HMECollateFunction(vocab)
@@ -63,7 +79,12 @@ class TestDataLoadingPipelineRaw:
 
 
 class TestDataLoadingPipelinePreprocessed:
-    def test_preprocessed_dataset_to_batch(self, preprocessed_pt_root: Path, vocab):
+    """Integration tests for the preprocessed (.pt) data loading path."""
+
+    def test_preprocessed_dataset_to_batch(
+        self, preprocessed_pt_root: Path, vocab: LatexVocab
+    ) -> None:
+        """Preprocessed .pt files must be correctly loaded and collated into batches."""
         ds = HMEDatasetPreprocessed(root=preprocessed_pt_root, split="train", vocab=vocab)
         assert len(ds) > 0
 
@@ -88,7 +109,10 @@ class TestDataLoadingPipelinePreprocessed:
 
 
 class TestDataModuleEndToEnd:
-    def test_datamodule_setup_then_iterate(self, preprocessed_pt_root: Path):
+    """End-to-end integration tests for the HMELightningDataModule."""
+
+    def test_datamodule_setup_then_iterate(self, preprocessed_pt_root: Path) -> None:
+        """The DataModule must successfully setup and provide iterable dataloaders."""
         dm = HMELightningDataModule(
             root=str(preprocessed_pt_root),
             processed=True,

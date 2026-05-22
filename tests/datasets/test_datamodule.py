@@ -1,3 +1,9 @@
+"""Tests for HMELightningDataModule.
+
+Validates the lifecycle of the LightningDataModule, including setup stages,
+dataloader creation, and batch shaping.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,7 +16,10 @@ from hand_to_tex.datasets.datamodule import HMELightningDataModule
 
 
 class TestDataModuleLifecycle:
-    def test_setup_fit_creates_train_and_val_loaders(self, preprocessed_pt_root: Path):
+    """Test suite for HMELightningDataModule lifecycle and dataloader creation."""
+
+    def test_setup_fit_creates_train_and_val_loaders(self, preprocessed_pt_root: Path) -> None:
+        """The 'fit' stage must correctly initialize training and validation dataloaders."""
         dm = HMELightningDataModule(
             root=str(preprocessed_pt_root),
             processed=True,
@@ -25,7 +34,8 @@ class TestDataModuleLifecycle:
         with pytest.raises(ValueError):
             dm.test_dataloader()
 
-    def test_setup_test_creates_test_loader_only(self, preprocessed_pt_root: Path):
+    def test_setup_test_creates_test_loader_only(self, preprocessed_pt_root: Path) -> None:
+        """The 'test' stage must correctly initialize only the test dataloader."""
         dm = HMELightningDataModule(
             root=str(preprocessed_pt_root),
             processed=True,
@@ -39,7 +49,8 @@ class TestDataModuleLifecycle:
         with pytest.raises(ValueError):
             dm.train_dataloader()
 
-    def test_dataloader_yields_correctly_shaped_batches(self, preprocessed_pt_root: Path):
+    def test_dataloader_yields_correctly_shaped_batches(self, preprocessed_pt_root: Path) -> None:
+        """Dataloaders must yield batches with correct tensor shapes and data types."""
         dm = HMELightningDataModule(
             root=str(preprocessed_pt_root),
             processed=True,
@@ -58,7 +69,8 @@ class TestDataModuleLifecycle:
         assert padded_ts.dtype == torch.long
         assert ts_lengths.ndim == 1
 
-    def test_train_dataloader_raises_before_setup(self, preprocessed_pt_root: Path):
+    def test_train_dataloader_raises_before_setup(self, preprocessed_pt_root: Path) -> None:
+        """Accessing dataloaders before setup() must raise a ValueError."""
         dm = HMELightningDataModule(
             root=str(preprocessed_pt_root),
             processed=True,

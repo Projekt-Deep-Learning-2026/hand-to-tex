@@ -309,7 +309,7 @@ class ExperimentalTransformer(BaseDecoderModel, OnnxExportable):
         return (src, src_lengths, tgt)
 
     def get_onnx_export_configs(self, device: str = "cpu") -> list[OnnxExportConfiguration]:
-        """Definiuje eksport do dwóch osobnych plików ONNX."""
+        """Define export configuration for two separate ONNX files (encoder and decoder)."""
         src, src_lengths, tgt = self.dummy_inputs(device=device)
 
         encoder_cfg = OnnxExportConfiguration(
@@ -349,16 +349,36 @@ class ExperimentalTransformer(BaseDecoderModel, OnnxExportable):
     def run_onnx_inference(
         cls,
         sessions: dict[str, InferenceSession],
-        src_features: Tensor,
-        src_lengths: Tensor,
+        src_features: BatchedFeatures,
+        src_lengths: FeatureLengths,
         vocab: LatexVocab,
         max_len: int,
     ) -> list[str]:
+        """Run inference using ONNX Runtime sessions.
+
+        Parameters
+        ----------
+        sessions:
+            Dictionary with 'encoder' and 'decoder' InferenceSessions.
+        src_features:
+            Input features (B, T, F).
+        src_lengths:
+            Input sequence lengths (B,).
+        vocab:
+            Vocabulary for decoding.
+        max_len:
+            Maximum generation length.
+
+        Returns
+        -------
+        list[str]
+            List of decoded LaTeX strings.
+        """
         enc_sess = sessions["encoder"]
         dec_sess = sessions["decoder"]
 
-        src_np = src_features.detach().cpu().numpy().astype(np.float32)
-        src_len_np = src_lengths.detach().cpu().numpy().astype(np.int64)
+        src_np = np.array(src_features).astype(np.float32)
+        src_len_np = np.array(src_lengths).astype(np.int64)
 
         memory, mem_mask = enc_sess.run(
             ["memory", "mem_mask"], {"src": src_np, "src_lengths": src_len_np}
@@ -382,4 +402,4 @@ class ExperimentalTransformer(BaseDecoderModel, OnnxExportable):
                 break
 
         results = [vocab.decode_sequence(tgt[i].tolist()) for i in range(batch_size)]
-        return results[0]
+        return results
