@@ -1,17 +1,33 @@
 from __future__ import annotations
 
+# NOTE: Several known harmless warnings are suppressed in pyproject.toml:
+# 1. 'num_workers' bottleneck: Expected in fast unit tests with small batches.
+# 2. 'enable_nested_tensor': Internal PyTorch notice when using norm_first=True.
+# 3. '__array__' copy keyword: Numpy 2.0 compatibility warning from torch.Tensor.
+# All other warnings (like TracerWarnings during ONNX export) are kept visible.
 from pathlib import Path
 
 import pytest
 import torch
-from loguru import logger
 
-from hand_to_tex.utils import LatexVocab
+from hand_to_tex.datasets.dataset import _HMEDatasetBase
+from hand_to_tex.utils import LatexVocab, logger
 
 
 @pytest.fixture
 def fixtures_dir() -> Path:
-    return Path(__file__).parent / "fixtures"
+    return Path("tests", "fixtures")
+
+
+@pytest.fixture
+def hand_to_tex_dir() -> Path:
+    return Path("src", "hand_to_tex")
+
+
+@pytest.fixture
+def feature_dim() -> int:
+    """Feature dimension for input features (from _HMEDatasetBase.FEATURES)."""
+    return _HMEDatasetBase.FEATURES
 
 
 @pytest.fixture
@@ -86,6 +102,27 @@ def tiny_lit_module(tiny_model_kwargs: dict, tiny_decoder_kwargs: dict):
     torch.manual_seed(0)
     vocab = LatexVocab.load(tiny_model_kwargs["vocab_path"])
     model = ExperimentalTransformer(
+        in_channels=12,
+        vocab_size=len(vocab),
+        pad_idx=vocab.PAD,
+        d_model=tiny_decoder_kwargs["d_model"],
+        nhead=tiny_decoder_kwargs["nhead"],
+        num_encoder_layers=tiny_decoder_kwargs["num_encoder_layers"],
+        num_decoder_layers=tiny_decoder_kwargs["num_decoder_layers"],
+        dim_feedforward=tiny_decoder_kwargs["dim_feedforward"],
+        dropout=tiny_decoder_kwargs["dropout"],
+    )
+    return HMELightningModule(model=model, **tiny_model_kwargs)
+
+
+@pytest.fixture
+def tiny_kvcache_demo_module(tiny_model_kwargs: dict, tiny_decoder_kwargs: dict):
+    from hand_to_tex.models.components import ExperimentalTransformerKVCacheDemo
+    from hand_to_tex.models.lit_module import HMELightningModule
+
+    torch.manual_seed(0)
+    vocab = LatexVocab.load(tiny_model_kwargs["vocab_path"])
+    model = ExperimentalTransformerKVCacheDemo(
         in_channels=12,
         vocab_size=len(vocab),
         pad_idx=vocab.PAD,

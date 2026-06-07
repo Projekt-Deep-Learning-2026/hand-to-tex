@@ -79,7 +79,7 @@ def _load_module(
     device: torch.device,
     *,
     use_kvcache: bool,
-):
+) -> HMELightningModule:
     """Instantiate a Lightning module and load checkpoint weights."""
     hparams: dict = {}
     ckpt = None

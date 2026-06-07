@@ -1,12 +1,22 @@
+"""Tests for HMEDataLoaderFactory.
+
+Verifies that the factory correctly creates PyTorch DataLoaders for different splits,
+applies collation, and handles parameter overrides.
+"""
+
+from __future__ import annotations
+
 from pathlib import Path
 
 import torch
 from torch.utils.data import RandomSampler, SequentialSampler
 
 from hand_to_tex.datasets.dataloader import HMEDataLoaderFactory
+from hand_to_tex.utils import LatexVocab
 
 
 def _prepare_splits_with_sample(tmp_path: Path, sample_inkml: Path) -> Path:
+    """Helper to create a temporary dataset directory structure with sample files."""
     root = tmp_path / "data"
     content = sample_inkml.read_text(encoding="utf-8")
 
@@ -19,7 +29,12 @@ def _prepare_splits_with_sample(tmp_path: Path, sample_inkml: Path) -> Path:
 
 
 class TestHMEDataLoaderFactory:
-    def test_train_uses_shuffle_and_drop_last(self, tmp_path: Path, sample_inkml: Path, vocab):
+    """Test suite for HMEDataLoaderFactory."""
+
+    def test_train_uses_shuffle_and_drop_last(
+        self, tmp_path: Path, sample_inkml: Path, vocab: LatexVocab
+    ) -> None:
+        """The training dataloader must use a RandomSampler and drop the last batch."""
         root = _prepare_splits_with_sample(tmp_path, sample_inkml)
         factory = HMEDataLoaderFactory(
             root=root,
@@ -37,7 +52,10 @@ class TestHMEDataLoaderFactory:
         assert train_loader.drop_last is True
         assert isinstance(train_loader.sampler, RandomSampler)
 
-    def test_valid_and_test_use_sequential_sampler(self, tmp_path: Path, sample_inkml: Path, vocab):
+    def test_valid_and_test_use_sequential_sampler(
+        self, tmp_path: Path, sample_inkml: Path, vocab: LatexVocab
+    ) -> None:
+        """Validation and test loaders must use a SequentialSampler and not drop the last batch."""
         root = _prepare_splits_with_sample(tmp_path, sample_inkml)
         factory = HMEDataLoaderFactory(
             root=root,
@@ -58,7 +76,10 @@ class TestHMEDataLoaderFactory:
         assert isinstance(valid_loader.sampler, SequentialSampler)
         assert isinstance(test_loader.sampler, SequentialSampler)
 
-    def test_custom_overrides_defaults(self, tmp_path: Path, sample_inkml: Path, vocab):
+    def test_custom_overrides_defaults(
+        self, tmp_path: Path, sample_inkml: Path, vocab: LatexVocab
+    ) -> None:
+        """The custom method must allow overriding default dataloader parameters."""
         root = _prepare_splits_with_sample(tmp_path, sample_inkml)
         factory = HMEDataLoaderFactory(
             root=root,
@@ -77,7 +98,10 @@ class TestHMEDataLoaderFactory:
         assert loader.drop_last is True
         assert isinstance(loader.sampler, RandomSampler)
 
-    def test_iteration_returns_collated_batch(self, tmp_path: Path, sample_inkml: Path, vocab):
+    def test_iteration_returns_collated_batch(
+        self, tmp_path: Path, sample_inkml: Path, vocab: LatexVocab
+    ) -> None:
+        """Iterating over the loader must yield a correctly collated 4-tuple batch."""
         root = _prepare_splits_with_sample(tmp_path, sample_inkml)
         factory = HMEDataLoaderFactory(
             root=root,
@@ -91,7 +115,8 @@ class TestHMEDataLoaderFactory:
         )
 
         loader = factory.valid()
-        padded_ft, ft_lengths, padded_ts, ts_lengths = next(iter(loader))
+        batch = next(iter(loader))
+        padded_ft, ft_lengths, padded_ts, ts_lengths = batch
 
         assert padded_ft.ndim == 3
         assert padded_ft.shape[0] == 1  # batch size
@@ -100,7 +125,10 @@ class TestHMEDataLoaderFactory:
         assert padded_ts.dtype == torch.long
         assert isinstance(ts_lengths, torch.Tensor)
 
-    def test_transform_applied_in_loader(self, tmp_path: Path, sample_inkml: Path, vocab):
+    def test_transform_applied_in_loader(
+        self, tmp_path: Path, sample_inkml: Path, vocab: LatexVocab
+    ) -> None:
+        """Optional transforms must be correctly applied by the underlying dataset."""
         root = _prepare_splits_with_sample(tmp_path, sample_inkml)
         factory = HMEDataLoaderFactory(
             root=root,

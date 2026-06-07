@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from typing import TypedDict
 
 from torch import Tensor
 
@@ -34,12 +35,23 @@ type TensorBool = Tensor
 type Transformation[TensorType: Tensor] = Callable[[TensorType], TensorType]
 """A callable function or object that applies a transformation module to a given tensor."""
 
-# KV-cache Types
-type LayerKVCache = dict[str, Tensor]
-"""Per-layer KV-cache with projected tensors (e.g., `self_k`, `self_v`, `mem_k`, `mem_v`)."""
 
-type DecoderKVCache = dict[str, int | list[LayerKVCache]]
-"""Decoder KV-cache storing the current step and per-layer cache tensors."""
+# KV-cache Types
+class LayerKVCache(TypedDict):
+    """Per-layer KV-cache with projected tensors."""
+
+    self_k: Tensor
+    self_v: Tensor
+    mem_k: Tensor
+    mem_v: Tensor
+
+
+class DecoderKVCache(TypedDict):
+    """Decoder KV-cache storing the current step and per-layer cache tensors."""
+
+    step: int
+    layers: list[LayerKVCache]
+
 
 # Feature Types
 type Features = TensorF32
