@@ -1,6 +1,7 @@
-import { useRef, useEffect, useImperativeHandle, forwardRef, useState } from 'react';
-import { CanvasDrawing } from '../logic/canvas';
-import type { CanvasMode, LatexObject } from '../logic/canvas';
+import React, { useRef, useEffect, useImperativeHandle, forwardRef, useState } from 'react';
+import { CanvasDrawing } from '../../logic/canvas';
+import type { ModeDetails } from './WhiteboardView';
+import type { CanvasMode, LatexObject } from '../../logic/canvas';
 import katex from 'katex';
 
 interface DrawingCanvasProps {
@@ -10,7 +11,7 @@ interface DrawingCanvasProps {
     defaultFontSize?: number;
     onSelectionComplete?: (traces: number[][][]) => void;
     onSelectionChange?: (count: number) => void;
-    onToast?: (message: string) => void;
+    onToast?: (details: ModeDetails) => void;
     onEdit?: (obj: LatexObject) => void;
 }
 
@@ -32,6 +33,71 @@ export interface DrawingCanvasHandle {
     setBackgroundImage: (image: HTMLImageElement | null) => void;
     updateLatexObject: (id: string, latex: string) => void;
 }
+
+interface LatexRendererProps {
+    obj: LatexObject;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    mode: CanvasMode;
+    onCopy: (latex: string) => void;
+    onEdit?: (obj: LatexObject) => void;
+    onDelete: (id: string) => void;
+}
+
+const LatexRenderer = React.memo(({ obj, x, y, width, height, mode, onCopy, onEdit, onDelete }: LatexRendererProps) => {
+    const elRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (elRef.current) {
+            katex.render(obj.latex, elRef.current, { 
+                throwOnError: false,
+                displayMode: true,
+                output: 'mathml'
+            });
+            const mathEl = elRef.current.querySelector('.katex-display, .katex, math') || elRef.current;
+            if (mathEl) {
+                (mathEl as HTMLElement).style.margin = '0';
+                (mathEl as HTMLElement).style.color = 'black';
+                (mathEl as HTMLElement).style.fontSize = `${Math.min(width, height) * 0.8}px`;
+            }
+        }
+    }, [obj.latex, width, height]);
+
+    return (
+        <div 
+            className="latex-object-container"
+            style={{
+                position: 'absolute',
+                left: x,
+                top: y,
+                width: width,
+                height: height,
+                pointerEvents: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                userSelect: 'none',
+                color: 'black',
+                border: mode === 'pointer' ? '1px dashed rgba(170, 59, 255, 0.3)' : 'none'
+            }}
+        >
+            <div 
+                style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                ref={elRef}
+            />
+            {mode === 'pointer' && (
+                <div className="object-actions" style={{ position: 'absolute', top: '-25px', right: 0, display: 'flex', gap: '5px', pointerEvents: 'auto' }}>
+                    <button onClick={() => onCopy(obj.latex)} title="Copy TeX" style={{ padding: '2px 5px', fontSize: '10px', background: '#333', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Copy</button>
+                    <button onClick={() => onEdit?.(obj)} title="Edit TeX" style={{ padding: '2px 5px', fontSize: '10px', background: '#333', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Edit</button>
+                    <button onClick={() => onDelete(obj.id)} title="Delete Object" style={{ padding: '2px 5px', fontSize: '10px', background: '#d32f2f', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Delete</button>
+                </div>
+            )}
+        </div>
+    );
+});
 
 export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(({ 
     className, 
@@ -92,7 +158,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         // Modern approach
         if (navigator.clipboard && window.isSecureContext) {
             navigator.clipboard.writeText(textToCopy).then(() => {
-                onToast?.("Copied to clipboard!");
+                onToast?.({message: "Copied to clipboard!"});
             }).catch(err => {
                 console.error('Clipboard error:', err);
                 fallbackCopy(textToCopy);
@@ -120,7 +186,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
             document.body.removeChild(textArea);
             
             if (successful) {
-                onToast?.("Copied to clipboard!");
+                onToast?.({message: "Copied to clipboard!"});
             }
         } catch (err) {
             console.error('Fallback copy error:', err);
@@ -129,7 +195,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
 
     const handleDelete = (id: string) => {
         if (drawingRef.current?.deleteLatexObject(id)) {
-            onToast?.("Object deleted");
+            onToast?.({message: "Object deleted"});
         }
     };
 
@@ -186,50 +252,18 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                 }}
             />
             {latexObjects.map(obj => (
-                <div 
-                    key={obj.id}
-                    className="latex-object-container"
-                    style={{
-                        position: 'absolute',
-                        left: obj.x,
-                        top: obj.y,
-                        width: obj.width,
-                        height: obj.height,
-                        pointerEvents: 'none',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        userSelect: 'none',
-                        color: 'black',
-                        border: mode === 'pointer' ? '1px dashed rgba(170, 59, 255, 0.3)' : 'none'
-                    }}
-                >
-                    <div 
-                        style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        ref={(el) => {
-                            if (el) {
-                                katex.render(obj.latex, el, { 
-                                    throwOnError: false,
-                                    displayMode: true
-                                });
-                                const mathEl = el.querySelector('.katex-display');
-                                if (mathEl) {
-                                    (mathEl as HTMLElement).style.margin = '0';
-                                    (mathEl as HTMLElement).style.color = 'black';
-                                    (mathEl as HTMLElement).style.fontSize = `${Math.min(obj.width, obj.height) * 0.8}px`;
-                                }
-                            }
-                        }}
-                    />
-                    {mode === 'pointer' && (
-                        <div className="object-actions" style={{ position: 'absolute', top: '-25px', right: 0, display: 'flex', gap: '5px', pointerEvents: 'auto' }}>
-                            <button onClick={() => handleCopy(obj.latex)} title="Copy TeX" style={{ padding: '2px 5px', fontSize: '10px', background: '#333', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Copy</button>
-                            <button onClick={() => onEdit?.(obj)} title="Edit TeX" style={{ padding: '2px 5px', fontSize: '10px', background: '#333', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Edit</button>
-                            <button onClick={() => handleDelete(obj.id)} title="Delete Object" style={{ padding: '2px 5px', fontSize: '10px', background: '#d32f2f', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Delete</button>
-                        </div>
-                    )}
-                </div>
+                <LatexRenderer 
+                    key={obj.id} 
+                    obj={obj} 
+                    x={obj.x}
+                    y={obj.y}
+                    width={obj.width}
+                    height={obj.height}
+                    mode={mode} 
+                    onCopy={handleCopy} 
+                    onEdit={onEdit} 
+                    onDelete={handleDelete} 
+                />
             ))}
         </div>
     );

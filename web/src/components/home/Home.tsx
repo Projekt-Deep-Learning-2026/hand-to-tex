@@ -1,5 +1,5 @@
 import React from 'react';
-import { CTAButton } from './CTAButton';
+import { CTAButton } from '../ui/CTAButton';
 
 interface HomeProps {
     onSelectView: (view: 'whiteboard') => void;

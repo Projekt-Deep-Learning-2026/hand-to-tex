@@ -138,6 +138,8 @@ export async function runInference(
     SOS_IDX: number,
     EOS_IDX: number
 ): Promise<number[]> {
+
+    
     const batchSize = 1;
     const srcDims = [batchSize, numPoints, numFeatures];
 

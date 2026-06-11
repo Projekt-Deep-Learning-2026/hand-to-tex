@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
+import katex from 'katex';
 
 interface SelectionWindowProps {
     latex: string | null;
@@ -6,7 +7,6 @@ interface SelectionWindowProps {
     isModelReady: boolean;
     onReplace: () => void;
     onClose: () => void;
-    selectionPreviewRef: React.RefObject<HTMLDivElement | null>;
     numSelectedTraces: number;
 }
 
@@ -16,9 +16,24 @@ export const SelectionWindow: React.FC<SelectionWindowProps> = ({
     isModelReady,
     onReplace,
     onClose,
-    selectionPreviewRef,
     numSelectedTraces
 }) => {
+    const previewRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (previewRef.current && latex && !['...', 'Error'].includes(latex)) {
+            try {
+                katex.render(latex, previewRef.current, {
+                    displayMode: true,
+                    throwOnError: false,
+                    output: 'mathml'
+                });
+            } catch (err) {
+                console.error("KaTeX error:", err);
+            }
+        }
+    }, [latex, isProcessing]);
+
     return (
         <div className="selection-window">
             <div className="window-header">
@@ -36,7 +51,7 @@ export const SelectionWindow: React.FC<SelectionWindowProps> = ({
                     </div>
                 ) : latex ? (
                     <div className="result-area">
-                        <div ref={selectionPreviewRef} className="latex-preview-large"></div>
+                        <div ref={previewRef} className="latex-preview-large"></div>
                         <code className="latex-code">{latex}</code>
                         <button 
                             className="replace-btn primary" 

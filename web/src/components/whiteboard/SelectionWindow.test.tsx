@@ -1,12 +1,17 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
 import { SelectionWindow } from './SelectionWindow';
-import React from 'react';
+
+// Mock katex
+vi.mock('katex', () => ({
+    default: {
+        render: vi.fn()
+    }
+}));
 
 describe('SelectionWindow Component', () => {
     const mockOnReplace = vi.fn();
     const mockOnClose = vi.fn();
-    const mockRef = React.createRef<HTMLDivElement>();
 
     afterEach(() => {
         vi.clearAllMocks();
@@ -20,7 +25,6 @@ describe('SelectionWindow Component', () => {
                 isModelReady={true} 
                 onReplace={mockOnReplace} 
                 onClose={mockOnClose} 
-                selectionPreviewRef={mockRef} 
                 numSelectedTraces={0} 
             />
         );
@@ -40,7 +44,6 @@ describe('SelectionWindow Component', () => {
                 isModelReady={true} 
                 onReplace={mockOnReplace} 
                 onClose={mockOnClose} 
-                selectionPreviewRef={mockRef} 
                 numSelectedTraces={5} 
             />
         );
@@ -57,7 +60,6 @@ describe('SelectionWindow Component', () => {
                 isModelReady={true} 
                 onReplace={mockOnReplace} 
                 onClose={mockOnClose} 
-                selectionPreviewRef={mockRef} 
                 numSelectedTraces={5} 
             />
         );
@@ -79,7 +81,6 @@ describe('SelectionWindow Component', () => {
                 isModelReady={false} 
                 onReplace={mockOnReplace} 
                 onClose={mockOnClose} 
-                selectionPreviewRef={mockRef} 
                 numSelectedTraces={5} 
             />
         );
@@ -93,7 +94,6 @@ describe('SelectionWindow Component', () => {
                 isModelReady={true} 
                 onReplace={mockOnReplace} 
                 onClose={mockOnClose} 
-                selectionPreviewRef={mockRef} 
                 numSelectedTraces={5} 
             />
         );
@@ -109,7 +109,6 @@ describe('SelectionWindow Component', () => {
                 isModelReady={true} 
                 onReplace={mockOnReplace} 
                 onClose={mockOnClose} 
-                selectionPreviewRef={mockRef} 
                 numSelectedTraces={2} 
             />
         );

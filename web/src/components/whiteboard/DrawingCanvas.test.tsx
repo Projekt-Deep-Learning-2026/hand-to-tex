@@ -32,7 +32,7 @@ const mockCanvasDrawingInstance = {
     handlePointerUp: vi.fn(),
 };
 
-vi.mock('../logic/canvas', () => {
+vi.mock('../../logic/canvas', () => {
     return {
         CanvasDrawing: vi.fn().mockImplementation(function() { return mockCanvasDrawingInstance; })
     };
