@@ -86,7 +86,17 @@ class ExperimentalTransformerKVCacheDemo(ExperimentalTransformer, OnnxExportable
 
     @torch.no_grad()
     def init_kv_cache(self, memory: Tensor) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
-        """Inicjalizuje tensory cache dla generacji krok po kroku."""
+        """Initialize cache tensors for step-by-step generation.
+
+        Returns
+        -------
+        tuple[Tensor, Tensor, Tensor, Tensor, Tensor]
+            - step: current generation step (scalar Tensor)
+            - self_k: self-attention key cache (L, B, H, T, Dh)
+            - self_v: self-attention value cache (L, B, H, T, Dh)
+            - mem_k: cross-attention key cache (L, B, H, T_src, Dh)
+            - mem_v: cross-attention value cache (L, B, H, T_src, Dh)
+        """
         batch_size = memory.size(0)
         num_layers = len(self._decoder_layers)
 
@@ -130,7 +140,27 @@ class ExperimentalTransformerKVCacheDemo(ExperimentalTransformer, OnnxExportable
         mem_v: Tensor,
         memory_key_padding_mask: TensorBool | None = None,
     ) -> tuple[Tensor, Tensor, Tensor]:
-        """Zunifikowany krok dekodowania dla PyTorch i eksportu ONNX."""
+        """Unified decoding step for PyTorch and ONNX export.
+
+        Parameters
+        ----------
+        tgt_last:
+            Last decoder token ids `(B, 1)`.
+        step:
+            Current step index `(1,)`.
+        self_k, self_v:
+            Self-attention K/V cache from previous steps.
+        mem_k, mem_v:
+            Cross-attention K/V cache (encoder memory).
+        memory_key_padding_mask:
+            Encoder memory padding mask.
+
+        Returns
+        -------
+        tuple[Tensor, Tensor, Tensor]
+            - logits: current step logits `(B, vocab_size)`
+            - new_self_k, new_self_v: updated K/V cache
+        """
 
         x = self.tgt_tok_emb(tgt_last) * self._d_model_scale
 

@@ -24,7 +24,7 @@ import torch
 from hand_to_tex.datasets import HMEDataLoaderFactory
 from hand_to_tex.models.components import (
     ExperimentalTransformer,
-    Model,
+    ExperimentalTransformerKVCache,
 )
 from hand_to_tex.models.lit_module import HMELightningModule
 from hand_to_tex.utils import LatexVocab
@@ -79,7 +79,7 @@ def _load_module(
     device: torch.device,
     *,
     use_kvcache: bool,
-):
+) -> HMELightningModule:
     """Instantiate a Lightning module and load checkpoint weights."""
     hparams: dict = {}
     ckpt = None
@@ -95,7 +95,7 @@ def _load_module(
                 in_channels = state_dict[key].shape[1]
                 break
 
-    model_cls = Model if use_kvcache else ExperimentalTransformer
+    model_cls = ExperimentalTransformerKVCache if use_kvcache else ExperimentalTransformer
     model = model_cls(
         in_channels=in_channels,
         vocab_size=len(vocab),

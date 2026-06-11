@@ -6,9 +6,7 @@ from torch import Tensor
 
 from hand_to_tex.models.components.base import BaseDecoderModel
 from hand_to_tex.models.components.positional_encoding import PositionalEncoding
-
-type LayerKVCache = dict[str, Tensor]
-type DecoderKVCache = dict[str, object]
+from hand_to_tex.types import DecoderKVCache, LayerKVCache
 
 
 class ExperimentalTransformerKVCache(BaseDecoderModel):

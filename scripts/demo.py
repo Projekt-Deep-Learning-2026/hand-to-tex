@@ -263,11 +263,15 @@ def main():
 
     if args.onnx:
         directory = Path(args.onnx)
+        vocab = LatexVocab.load(args.vocab)
+        # Assuming ExperimentalTransformerKVCacheDemo as the default for ONNX
+        from hand_to_tex.models.components import ExperimentalTransformerKVCacheDemo
+
         onnx_batch_inference(
+            model_class=ExperimentalTransformerKVCacheDemo,
             inkml_directory=Path(args.input),
-            vocab_path=Path(args.vocab),
-            encoder_path=directory / "encoder.onnx",
-            decoder_path=directory / "decoder.onnx",
+            model_directory=directory,
+            vocab=vocab,
             max_len=150,
         )
 
