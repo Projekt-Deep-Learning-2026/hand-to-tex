@@ -1,4 +1,4 @@
-name: python-push-testing
+name: Test python code
 
 on: [push]
 
