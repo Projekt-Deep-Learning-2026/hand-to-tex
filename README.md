@@ -18,10 +18,27 @@ It includes the full workflow:
 
 ### 2. Install dependencies
 
+Choose the backend that matches your hardware:
+
+| Extra | Hardware | Use case |
+|---|---|---|
+| *(none)* | Apple Silicon / macOS | mps training & experiments |
+| `cpu` | any CPU (Linux / Windows / macOS) | lightweight inference, no GPU needed |
+| `gpu` | NVIDIA CUDA (Linux / Windows) | training & experiments |
+
 ```bash
 git clone https://github.com/Projekt-Deep-Learning-2026/hand-to-tex.git
 cd hand-to-tex
+
+# Apple Silicon / macOS
 uv sync --dev
+
+# CPU-only (inference, CI, lightweight env)
+uv sync --extra cpu --dev
+
+# NVIDIA GPU / CUDA (training, Linux/Windows)
+uv sync --extra gpu --dev
+
 uv run pre-commit install
 ```
 
