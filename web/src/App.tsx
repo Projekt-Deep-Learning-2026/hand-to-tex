@@ -16,8 +16,9 @@ import { Toast } from './components/Toast';
 import { EditModal } from './components/EditModal';
 
 type View = 'home' | 'whiteboard';
+type ModeDetails = { icon?: string, message: string };
 
-const MODE_DETAILS: Record<CanvasMode, { icon: string, message: string }> = {
+const MODE_DETAILS: Record<CanvasMode, ModeDetails> = {
     draw: { icon: '✏️', message: 'Draw Mode Active' },
     select: { icon: '🔍', message: 'Select Mode Active' },
     erase: { icon: '🧹', message: 'Erase Mode Active' },
@@ -35,7 +36,7 @@ function App() {
     const [isProcessing, setIsProcessing] = useState<boolean>(false);
     const [initialProjectData, setInitialProjectData] = useState<{traces?: number[][][], latexObjects?: LatexObject[]} | null>(null);
     const [showTutorial, setShowTutorial] = useState(false);
-    const [toast, setToast] = useState<string | null>(null);
+    const [toast, setToast] = useState<ModeDetails | null>(null);
     const [editingObject, setEditingObject] = useState<LatexObject | null>(null);
 
     const canvasRef = useRef<DrawingCanvasHandle>(null);
@@ -127,7 +128,7 @@ function App() {
         setSelectedLatex(null);
         setNumSelectedTraces(0);
         setIsSelectionWindowVisible(false);
-        setToast("Whiteboard cleared");
+        setToast({message: "Whiteboard cleared"});
     };
 
     const navigateToView = (v: View) => {
@@ -143,7 +144,7 @@ function App() {
         setIsSelectionWindowVisible(false);
         canvasRef.current?.clearSelection();
         if (showToast) {
-            setToast(MODE_DETAILS[mode].message);
+            setToast(MODE_DETAILS[mode]);
         }
     };
 
@@ -151,7 +152,7 @@ function App() {
         if (editingObject && canvasRef.current) {
             canvasRef.current.updateLatexObject(editingObject.id, newLatex);
             setEditingObject(null);
-            setToast("LaTeX updated");
+            setToast({message: "LaTeX updated"});
         }
     };
 
@@ -179,7 +180,7 @@ function App() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        setToast("Project saved");
+        setToast({message: "Project saved"});
     };
 
     const handleLoadProject = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -204,7 +205,7 @@ function App() {
                     if (data.latexObjects) canvasRef.current?.setLatexObjects(data.latexObjects);
                     changeCanvasMode('draw', false);
                 }
-                setToast("Project loaded");
+                setToast({message: "Project loaded"});
             } catch (err) {
                 alert("Error loading project: " + (err as Error).message);
             }
@@ -235,7 +236,7 @@ function App() {
             });
             pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
             pdf.save(fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`);
-            setToast("PDF exported");
+            setToast({message: "PDF exported"});
         } catch (err) {
             alert("Error exporting PDF: " + (err as Error).message);
         } finally {
@@ -247,16 +248,22 @@ function App() {
     const renderWhiteboard = () => (
         <div className="whiteboard-container">
             <div className="whiteboard-header">
-                <button className="back-button" onClick={() => navigateToView('home')} style={{ marginBottom: 0 }}>
+                <button className="back-button" onClick={() => {
+                    navigateToView('home');
+                    setToast(null);
+                }
+                } style={{ marginBottom: 0 }}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                 </button>
                 <div className="whiteboard-title">Whiteboard</div>
                 <div className={`model-status-indicator ${modelStatus}`} title={modelProgress}>
                     <span className="dot"></span>
                     <span className="label">
-                        {modelStatus === 'success' ? 'Ready' : 
-                         modelStatus === 'loading' ? modelProgress.replace('Loading ', '') : 
-                         modelStatus === 'error' ? 'Error' : 'Offline'}
+                        {
+                        modelStatus === 'success' ? 'Ready' : 
+                        modelStatus === 'loading' ? modelProgress.replace('Loading ', '') : 
+                        modelStatus === 'error' ? 'Error' : 'Offline'
+                        }
                     </span>
                 </div>
                 <div style={{ flexGrow: 1 }}></div>
@@ -283,7 +290,7 @@ function App() {
                         penOnlyMode={penOnlyMode}
                         onSelectionComplete={handleSelectionRecognize} 
                         onSelectionChange={setNumSelectedTraces}
-                        onToast={(m) => setToast(m)}
+                        onToast={(m) => setToast({message: m})}
                         onEdit={(obj) => setEditingObject(obj)}
                     />
                 </div>
@@ -388,7 +395,7 @@ function App() {
                 </div>
             )}
 
-            {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+            {toast && <Toast message={toast.message} icon={toast?.icon} onClose={() => setToast(null)} />}
             
             {editingObject && (
                 <EditModal 
