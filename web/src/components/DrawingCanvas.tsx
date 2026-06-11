@@ -37,7 +37,6 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     className, 
     mode = 'draw',
     penOnlyMode = false,
-    defaultFontSize = 1.0,
     onSelectionComplete,
     onSelectionChange,
     onToast,

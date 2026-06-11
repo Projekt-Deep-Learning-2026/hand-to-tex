@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { vi } from 'vitest';
 import { DrawingCanvas } from './DrawingCanvas';
 import React from 'react';
