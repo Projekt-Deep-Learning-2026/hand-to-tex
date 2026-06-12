@@ -17,25 +17,31 @@ export function useModel() {
         progress: 'Waiting to load...'
     });
 
-    const encoderRef = useRef<ort.InferenceSession | null>(null);
-    const decoderRef = useRef<ort.InferenceSession | null>(null);
+    const sessionsRef = useRef<{
+        encoder: ort.InferenceSession;
+        decoder: ort.InferenceSession;
+    } | null>(null);
 
     const releaseSessions = useCallback(async () => {
-        if (encoderRef.current) {
-            try { await (encoderRef.current as any).handler?.dispose(); } catch {} // Deep cleanup if available
-            encoderRef.current = null;
-        }
-        if (decoderRef.current) {
-            try { await (decoderRef.current as any).handler?.dispose(); } catch {}
-            decoderRef.current = null;
+        if (sessionsRef.current) {
+            try {
+                const { encoder, decoder } = sessionsRef.current;
+                await (encoder as any).handler?.dispose?.();
+                await (decoder as any).handler?.dispose?.();
+            } catch (e) {
+                console.warn("Error during session disposal:", e);
+            }
+            sessionsRef.current = null;
         }
     }, []);
 
     useEffect(() => {
         return () => {
-            // Cleanup on unmount
-            if (encoderRef.current) (encoderRef.current as any).handler?.dispose();
-            if (decoderRef.current) (decoderRef.current as any).handler?.dispose();
+            if (sessionsRef.current) {
+                const { encoder, decoder } = sessionsRef.current;
+                (encoder as any).handler?.dispose?.();
+                (decoder as any).handler?.dispose?.();
+            }
         };
     }, []);
 
@@ -54,10 +60,12 @@ export function useModel() {
             };
 
             setState(prev => ({ ...prev, progress: 'Loading encoder...' }));
-            encoderRef.current = await ort.InferenceSession.create(ENCODER_URL, sessionOptions);
+            const encoder = await ort.InferenceSession.create(ENCODER_URL, sessionOptions);
 
             setState(prev => ({ ...prev, progress: 'Loading decoder...' }));
-            decoderRef.current = await ort.InferenceSession.create(DECODER_URL, sessionOptions);
+            const decoder = await ort.InferenceSession.create(DECODER_URL, sessionOptions);
+
+            sessionsRef.current = { encoder, decoder };
 
             setState({
                 vocab,
@@ -81,13 +89,13 @@ export function useModel() {
         numPoints: number,
         numFeatures: number
     ): Promise<number[]> => {
-        if (!encoderRef.current || !decoderRef.current || !state.vocab) {
+        if (!sessionsRef.current || !state.vocab) {
             throw new Error("Models not ready");
         }
 
         return runInference(
-            encoderRef.current,
-            decoderRef.current,
+            sessionsRef.current.encoder,
+            sessionsRef.current.decoder,
             flatData,
             numPoints,
             numFeatures,
@@ -100,6 +108,6 @@ export function useModel() {
         ...state, 
         load, 
         recognize,
-        isReady: state.status === 'success' && !!encoderRef.current && !!decoderRef.current
+        isReady: state.status === 'success' && !!sessionsRef.current
     };
 }
