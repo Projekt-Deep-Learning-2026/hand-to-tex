@@ -1,7 +1,7 @@
 name: Test web dir and deploy to gh-pages
 on:
     push:
-        branches: ["web-inference"]
+        branches: ["main"]
     workflow_dispatch:
 
 permissions:
