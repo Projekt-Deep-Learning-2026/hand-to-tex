@@ -88,7 +88,6 @@ describe('WhiteboardView Component', () => {
     it('navigates home when back button is clicked', () => {
         render(<WhiteboardView {...defaultProps} />);
         
-        // The back button has an SVG and no text, so we find it by its class or structure
         const backBtn = document.querySelector('.back-button');
         if (backBtn) fireEvent.click(backBtn);
         
