@@ -96,6 +96,7 @@
 
 .edit-modal textarea {
     width: 100%;
+    box-sizing: border-box;
     height: 120px;
     background: #1a1a1a;
     color: #fff;
@@ -107,6 +108,22 @@
     resize: none;
     outline: none;
     transition: border-color 0.2s;
+    margin: 0 auto;
+    display: block;
+}
+
+.latex-editor {
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.input-section, .preview-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .edit-modal textarea:focus {

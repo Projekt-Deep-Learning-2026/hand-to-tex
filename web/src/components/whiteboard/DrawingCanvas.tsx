@@ -133,7 +133,6 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                 drawingRef.current = null;
             };
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -251,7 +250,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                     drawingRef.current?.handlePointerUp();
                 }}
             />
-            {latexObjects.map(obj => (
+            <>{latexObjects.map(obj => (
                 <LatexRenderer 
                     key={obj.id} 
                     obj={obj} 
@@ -265,6 +264,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                     onDelete={handleDelete} 
                 />
             ))}
+            </>
         </div>
     );
 });
