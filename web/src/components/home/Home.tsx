@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CTAButton } from '../ui/CTAButton';
+import { TutorialModal } from '../ui/TutorialModal';
 
 interface HomeProps {
     onSelectView: (view: 'whiteboard') => void;
@@ -7,6 +8,8 @@ interface HomeProps {
 }
 
 export const Home: React.FC<HomeProps> = ({ onSelectView, onLoadProject }) => {
+    const [showTutorial, setShowTutorial] = useState(false);
+
     return (
         <div className="home-container">
             <header className="hero">
@@ -32,7 +35,17 @@ export const Home: React.FC<HomeProps> = ({ onSelectView, onLoadProject }) => {
                     accept=".json"
                     onChange={onLoadProject}
                 />
+
+                <CTAButton 
+                    type="secondary"
+                    icon="ℹ️"
+                    title="How to Use"
+                    subtitle="Learn the tools"
+                    onClick={() => setShowTutorial(true)}
+                />
             </div>
+
+            {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} />}
 
             <footer className="home-footer">
                 <a 

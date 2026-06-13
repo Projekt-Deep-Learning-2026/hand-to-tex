@@ -5,6 +5,7 @@ import type { DrawingCanvasHandle } from './DrawingCanvas';
 import { SelectionWindow } from './SelectionWindow';
 import { Toolbar } from './Toolbar';
 import { EditModal } from '../editor/EditModal';
+import { TutorialModal } from '../ui/TutorialModal';
 import { useProjectIO } from '../../hooks/useProjectIO';
 import type { ProjectData } from '../../hooks/useProjectIO';
 import type { CanvasMode, LatexObject } from '../../logic/canvas';
@@ -47,6 +48,7 @@ export const WhiteboardView: React.FC<WhiteboardViewProps> = ({
     const [isSelectionWindowVisible, setIsSelectionWindowVisible] = useState(false);
     const [numSelectedTraces, setNumSelectedTraces] = useState(0);
     const [editingObject, setEditingObject] = useState<LatexObject | null>(null);
+    const [showTutorial, setShowTutorial] = useState(false);
 
     const canvasRef = useRef<DrawingCanvasHandle>(null);
     const whiteboardWrapperRef = useRef<HTMLDivElement>(null);
@@ -171,6 +173,9 @@ export const WhiteboardView: React.FC<WhiteboardViewProps> = ({
                 <div style={{ flexGrow: 1 }}></div>
                 
                 <div className="header-actions">
+                    <button onClick={() => setShowTutorial(true)} className="mini help-btn" title="How to use">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    </button>
                     <button onClick={handleSaveToFile} className="mini" title="Save Project as JSON">Save JSON</button>
                     <label className="button mini" title="Load Project from JSON">
                         Load JSON
@@ -224,6 +229,8 @@ export const WhiteboardView: React.FC<WhiteboardViewProps> = ({
                     onCancel={() => setEditingObject(null)}
                 />
             )}
+
+            {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} />}
         </div>
     );
 };

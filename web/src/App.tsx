@@ -13,7 +13,6 @@ type ModeDetails = { icon?: string, message: string };
 function App() {
     const [view, setView] = useState<View>('home');
     const [initialProjectData, setInitialProjectData] = useState<ProjectData | null>(null);
-    const [showTutorial, setShowTutorial] = useState(false);
     const [toast, setToast] = useState<ModeDetails | null>(null);
 
     const { 
@@ -78,21 +77,6 @@ function App() {
                     vocab={vocab}
                     recognize={recognize}
                 />
-            )}
-
-            {showTutorial && (
-                <div className="tutorial-overlay" onClick={() => setShowTutorial(false)}>
-                    <div className="tutorial-content" onClick={(e) => e.stopPropagation()}>
-                        <h2>How to use Hand-to-TeX</h2>
-                        <ol>
-                            <li><strong>Draw:</strong> Use the Pencil tool to write any mathematical expression.</li>
-                            <li><strong>Selective Recognition:</strong> Use the Select tool (🔍) to highlight a specific area for targeted recognition and conversion.</li>
-                            <li><strong>Pointer Tool:</strong> Move or resize digitized math objects on your canvas.</li>
-                            <li><strong>Erase Tool:</strong> Remove specific strokes or objects from the canvas.</li>
-                        </ol>
-                        <button className="primary close-tutorial" onClick={() => setShowTutorial(false)}>Got it!</button>
-                    </div>
-                </div>
             )}
 
             {toast && <Toast message={toast.message} icon={toast?.icon} onClose={() => setToast(null)} />}
