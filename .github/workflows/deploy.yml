@@ -1,5 +1,4 @@
-﻿name: Test web/ and deploy to gh-pages
-
+name: Test web dir and deploy to gh-pages
 on:
     push:
         branches: ["web-inference"]
