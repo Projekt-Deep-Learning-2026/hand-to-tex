@@ -551,15 +551,28 @@ export class CanvasDrawing {
     }
 
     public dispose() {
+        if (!this.offscreenCanvas) return;
+        
         // Clear references and remove the offscreen canvas from memory
         this.offscreenCanvas.width = 0;
         this.offscreenCanvas.height = 0;
         
         // We use casting to null to help GC even if the TS types say they are non-nullable
         // as this instance is now being discarded.
-        (this.offscreenCanvas as unknown) = null;
-        (this.offscreenCtx as unknown) = null;
-        (this.canvas as unknown) = null;
-        (this.ctx as unknown) = null;
+        this.offscreenCanvas = null as any;
+        this.offscreenCtx = null as any;
+        this.canvas = null as any;
+        this.ctx = null as any;
+
+        // Clear callbacks and large objects
+        this.onSelectionComplete = undefined;
+        this.onSelectionChange = undefined;
+        this.onObjectsChange = undefined;
+        this.backgroundImage = null;
+        this.traces = [];
+        this.redoStack = [];
+        this.currentTrace = [];
+        this.latexObjects = [];
+        this.selectedTraceIndices.clear();
     }
 }
