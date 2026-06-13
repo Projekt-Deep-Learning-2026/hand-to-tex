@@ -201,26 +201,3 @@ export async function runInference(
 
     return generatedTokenIds;
 }
-
-export function parseInkml(xmlString: string): number[][][] {
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlString, "text/xml");
-    let traceNodes = xmlDoc.getElementsByTagNameNS("http://www.w3.org/2003/InkML", "trace");
-    if (traceNodes.length === 0) traceNodes = xmlDoc.getElementsByTagName("trace");
-
-    const traces: number[][][] = [];
-    for (const node of Array.from(traceNodes)) {
-        const text = node.textContent?.trim();
-        if (!text) continue;
-        const pointsStr = text.split(',');
-        const trace: number[][] = [];
-        for (const ptStr of pointsStr) {
-            const coords = ptStr.trim().split(/\s+/).map(Number);
-            if (coords.length >= 3 && !isNaN(coords[0])) {
-                trace.push([coords[0], coords[1], coords[2]]);
-            }
-        }
-        if (trace.length > 0) traces.push(trace);
-    }
-    return traces;
-}
