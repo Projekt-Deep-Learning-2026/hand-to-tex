@@ -78,18 +78,6 @@ Activating the environment allows you to run commands without prefixing them wit
 - **Git Bash (Windows):** `source .venv/Scripts/activate`
 - **PowerShell (Windows):** `.venv\Scripts\Activate.ps1`
 
-### 4. Run a Prediction Immediately
-
-You don't need to train a model to see it in action! We've included a pre-trained checkpoint. Run this command to process a sample file:
-
-```bash
-htt-demo --ckpt data/models/last.ckpt --input tests/fixtures/sample.inkml
-```
-
-You'll see the predicted $\LaTeX$ printed in your console and a plot window showing the strokes.
-
-![Prediction Output Plot](blank-plot.png)  
-*Example plot of a prediction, displaying the handwritten strokes alongside the generated LaTeX output.*
 
 ---
 
