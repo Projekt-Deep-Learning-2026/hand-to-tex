@@ -1,0 +1,203 @@
+# Hand-to-TeX 🖋️ -> $\TeX$
+
+[![Tests](https://github.com/Projekt-Deep-Learning-2026/hand-to-tex/actions/workflows/python-testing.yml/badge.svg)](https://github.com/Projekt-Deep-Learning-2026/hand-to-tex/actions/workflows/python-testing.yml)
+[![Linting](https://github.com/Projekt-Deep-Learning-2026/hand-to-tex/actions/workflows/ruff-linting.yml/badge.svg)](https://github.com/Projekt-Deep-Learning-2026/hand-to-tex/actions/workflows/ruff-linting.yml)
+[![Deploy](https://github.com/Projekt-Deep-Learning-2026/hand-to-tex/actions/workflows/deploy.yml/badge.svg)](https://github.com/Projekt-Deep-Learning-2026/hand-to-tex/actions/workflows/deploy.yml)
+
+## Table of Contents
+
+- [Introduction](#introduction)
+- [Quick Start Guide](#quick-start-guide)
+- [Dataset Details](#dataset-details)
+- [Training and Evaluation](#training-and-evaluation)
+- [Inference and Demo](#inference-and-demo)
+- [Development](#development)
+
+---
+
+## Introduction
+
+Welcome to **Hand-to-TeX**! This is a deep learning project focused on converting online handwritten mathematical expressions (such as InkML stroke data) directly into $\LaTeX$ code. 
+
+**Try it out!** Check out our live web demo here:  
+👉 [Hand-to-TeX Web Demo](https://projekt-deep-learning-2026.github.io/hand-to-tex/)
+
+Our project covers the complete pipeline:
+- Downloading and preprocessing datasets into efficient `.pt` tensors.
+- Training and evaluating deep learning models using PyTorch Lightning.
+- Running batch and interactive inferences.
+
+![Web Demo Interface](blank-demo.png)  
+*A preview of our interactive web interface showing handwritten math being translated to LaTeX.*
+
+---
+
+## Quick Start Guide
+
+Ready to dive in? Follow these steps to get the project up and running locally.
+
+### 1. Prerequisites
+
+- Python 3.12 or newer.
+- The `uv` package manager. You can install it via `pip install uv`.
+
+### 2. Clone and Install Dependencies
+
+First, clone the repository and navigate into the folder:
+
+```bash
+git clone https://github.com/Projekt-Deep-Learning-2026/hand-to-tex.git
+cd hand-to-tex
+```
+
+Next, use `uv` to install the dependencies. Pick the command that matches your hardware setup:
+
+- **Apple Silicon / macOS** (For training & experiments):
+  ```bash
+  uv sync --dev
+  ```
+- **CPU-only** (Linux / Windows / macOS - for lightweight inference, no GPU needed):
+  ```bash
+  uv sync --extra cpu --dev
+  ```
+- **NVIDIA GPU / CUDA** (Linux / Windows - for training & experiments):
+  ```bash
+  uv sync --extra gpu --dev
+  ```
+
+Install pre-commit hooks to keep code clean:
+```bash
+uv run pre-commit install
+```
+
+### 3. Activate the Virtual Environment
+
+Activating the environment allows you to run commands without prefixing them with `uv run`.
+
+- **macOS / Linux:** `source .venv/bin/activate`
+- **Git Bash (Windows):** `source .venv/Scripts/activate`
+- **PowerShell (Windows):** `.venv\Scripts\Activate.ps1`
+
+### 4. Run a Prediction Immediately
+
+You don't need to train a model to see it in action! We've included a pre-trained checkpoint. Run this command to process a sample file:
+
+```bash
+htt-demo --ckpt data/models/last.ckpt --input tests/fixtures/sample.inkml
+```
+
+You'll see the predicted $\LaTeX$ printed in your console and a plot window showing the strokes.
+
+![Prediction Output Plot](blank-plot.png)  
+*Example plot of a prediction, displaying the handwritten strokes alongside the generated LaTeX output.*
+
+---
+
+## Dataset Details
+
+This project relies on robust handwritten mathematical data. We primarily use the **MathWriting** dataset.
+
+If you'd like to learn more about the dataset methodology, check out the original research paper:  
+📄 [MathWriting: A Database for Online Handwritten Mathematical Expression Recognition](https://arxiv.org/html/2404.10690v1)
+
+### Prepare Data Automatically
+
+To download and preprocess the dataset in one go, simply run:
+
+```bash
+htt-init --mode standard --threads 8
+```
+
+You can change the `--mode` to `mock` for a fast local check, or `extended` if you want extra merged data.
+
+---
+
+## Training and Evaluation
+
+Training models is straightforward thanks to PyTorch Lightning and the Lightning CLI. We manage configurations using YAML files located in the `configs/` directory.
+
+### Training the Model
+
+To train the model using our default configuration (which expects the data to be in `data/full`), run:
+
+```bash
+htt-run fit --config configs/default.yaml
+```
+
+If you processed your data into a different folder, you can override the path easily:
+
+```bash
+htt-run fit --config configs/default.yaml --data.root data/extended
+```
+
+*For quick sanity checks, use `configs/short.yaml` combined with smaller mock data.*
+
+![Training Loss Graph](blank-training.png)  
+*A graph illustrating the training and validation loss over time.*
+
+### Evaluating the Model
+
+Once trained, you can evaluate your model's performance on the test set using a checkpoint:
+
+```bash
+htt-run test --config configs/default.yaml --ckpt_path checkpoints/last.ckpt
+```
+
+---
+
+## Inference and Demo
+
+You can interact with your models in multiple ways using the `htt-demo` CLI tool.
+
+### Batch Inference
+
+Process an entire directory of `.inkml` files at once:
+
+```bash
+htt-demo --ckpt data/models/last.ckpt --input data/mathwriting-2024/test
+```
+
+To save visualizations of the predictions instead of just viewing them, add the `--save-img` flag:
+
+```bash
+htt-demo --ckpt data/models/last.ckpt --input tests/fixtures --save-img
+```
+
+### Interactive Canvas Mode
+
+Want to draw your own math expressions? Launch the interactive canvas:
+
+```bash
+htt-demo --ckpt data/models/last.ckpt --interactive
+```
+
+![Interactive Canvas](blank-canvas.png)  
+*The interactive drawing canvas where you can write equations and see live predictions.*
+
+---
+
+## Development
+
+If you are contributing to the project, here are some helpful commands:
+
+**Run tests:**
+```bash
+pytest
+```
+
+**Run linting and formatting:**
+```bash
+ruff check .
+ruff format .
+```
+
+Our project structure is organized as follows:
+- `configs/` - Training configuration profiles.
+- `scripts/` - CLI scripts for data preparation and demos.
+- `src/hand_to_tex/` - Core deep learning logic, datasets, and utilities.
+- `tests/` - Unit and integration tests.
+- `web/` - Web frontend for the browser demo.
+
+---
+
+*This project is licensed under the MIT License. See the `LICENSE` file for details.*
