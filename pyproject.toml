@@ -8,7 +8,6 @@ dependencies = [
     "lightning>=2.6.1",
     "loguru>=0.7.3",
     "matplotlib>=3.10.8",
-    "torch>=2.1.0",
     "torchmetrics>=1.9.0",
     "tqdm>=4.67.3",
     "wandb>=0.25.1",
@@ -20,6 +19,12 @@ dependencies = [
     "onnxsim>=0.6.3",
     "onnxscript>=0.1.0",
 ]
+
+[project.optional-dependencies]
+# CPU-only PyTorch wheel — lightweight inference, no GPU needed
+cpu = ["torch>=2.1.0"]
+# NVIDIA CUDA GPU (Linux/Windows) — training & experiments
+gpu = ["torch>=2.1.0"]
 
 [dependency-groups]
 dev = [
@@ -38,6 +43,9 @@ include = ["hand_to_tex*", "scripts*"]
 
 [tool.uv]
 package = true
+conflicts = [
+    [{ extra = "cpu" }, { extra = "gpu" }],
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
@@ -81,10 +89,18 @@ htt-export = "scripts.export:main"
 
 [tool.uv.sources]
 torch = [
-    { index = "pytorch", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+    # gpu extra → CUDA wheel (Linux/Windows)
+    { index = "pytorch-cu121", extra = "gpu" },
+    # cpu extra → CPU-only wheel (all platforms)
+    { index = "pytorch-cpu", extra = "cpu" },
 ]
 
 [[tool.uv.index]]
-name = "pytorch"
+name = "pytorch-cu121"
 url = "https://download.pytorch.org/whl/cu121"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
 explicit = true

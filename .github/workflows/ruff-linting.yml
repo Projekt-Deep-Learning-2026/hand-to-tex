@@ -1,4 +1,4 @@
-name: ruff-push-linting
+name: Linting check with ruff
 
 on: [push]
 

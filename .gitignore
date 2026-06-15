@@ -12,6 +12,26 @@ __pycache__/
 data/*
 !data/assets/*
 
+# web data
+!**/glob-import/dir/node_modules
+.idea
+.pnpm-store
+*.cpuprofile
+*.local
+*.log
+/.vscode/
+/docs/.vitepress/cache
+/docs/.vitepress/.temp
+/packages/vite/LICENSE
+dist
+dist-ssr
+explorations
+node_modules
+playground-temp
+temp
+TODOs.md
+.eslintcache
+
 # training
 checkpoint/*
 checkpoints/*
