@@ -135,8 +135,6 @@ htt-run fit --config configs/default.yaml --data.root data/extended
 
 *For quick sanity checks, use `configs/short.yaml` combined with smaller mock data.*
 
-![Training Loss Graph](blank-training.png)  
-*A graph illustrating the training and validation loss over time.*
 
 ### Evaluating the Model
 
@@ -155,8 +153,9 @@ We use Weights & Biases (W&B) for experiment tracking, monitoring training metri
 You can view our public project dashboard and training logs here:  
 👉 [Hand-to-TeX W&B Workspace](https://wandb.ai/dl-26-uniwroc-team1/hand-to-tex)
 
-![Weights & Biases Dashboard](blank-wandb.png)  
-*Placeholder for a screenshot of our W&B project dashboard showing training metrics.*
+![Validation Progress through training](<img width="1828" height="635" alt="image" src="https://github.com/user-attachments/assets/e865f32d-263a-4cc4-aff8-69ffafc8d73b" />
+)  
+*Screenshot from W&B. Training with `symbols` split merged into standard dataset and default.yaml config*
 
 ---
 
