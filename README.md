@@ -23,18 +23,15 @@ Welcome to **Hand-to-TeX**! This is a deep learning project focused on convertin
 **Try it out!** Check out our live web demo here:  
 👉 [Hand-to-TeX Web Demo](https://projekt-deep-learning-2026.github.io/hand-to-tex/)
 
+
+<img width="2048" height="1140" alt="image" src="https://github.com/user-attachments/assets/bc8b652b-1895-44d7-b7ca-6c187d86d78b" />
+<img width="2048" height="1140" alt="image" src="https://github.com/user-attachments/assets/b9512abf-12f7-42fe-a456-3e0f2ebb696b" />
+*A preview of our interactive web interface showing handwritten math being translated to LaTeX.*
+
 Our project covers the complete pipeline:
 - Downloading and preprocessing datasets into efficient `.pt` tensors.
 - Training and evaluating deep learning models using PyTorch Lightning.
 - Running batch and interactive inferences.
-
-
-<img width="2048" height="1140" alt="image" src="https://github.com/user-attachments/assets/b9512abf-12f7-42fe-a456-3e0f2ebb696b" />
-
-<img width="2048" height="1140" alt="image" src="https://github.com/user-attachments/assets/bc8b652b-1895-44d7-b7ca-6c187d86d78b" />
-
-*A preview of our interactive web interface showing handwritten math being translated to LaTeX.*
-
 ---
 
 ## Quick Start Guide
