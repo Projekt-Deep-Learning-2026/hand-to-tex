@@ -153,7 +153,7 @@ We use Weights & Biases (W&B) for experiment tracking, monitoring training metri
 You can view our public project dashboard and training logs here:  
 👉 [Hand-to-TeX W&B Workspace](https://wandb.ai/dl-26-uniwroc-team1/hand-to-tex)
 
-![Validation Progress through training](<img width="1828" height="635" alt="image" src="https://github.com/user-attachments/assets/e865f32d-263a-4cc4-aff8-69ffafc8d73b" />)  
+![Validation Progress through training](https://github.com/user-attachments/assets/e865f32d-263a-4cc4-aff8-69ffafc8d73b)  
 *Screenshot from W&B. Training with `symbols` split merged into standard dataset and default.yaml config*
 
 ---
