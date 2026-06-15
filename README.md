@@ -29,9 +29,9 @@ Our project covers the complete pipeline:
 - Running batch and interactive inferences.
 
 
-![Web Demo Preview] <img width="2048" height="1140" alt="image" src="https://github.com/user-attachments/assets/b9512abf-12f7-42fe-a456-3e0f2ebb696b" />
+<img width="2048" height="1140" alt="image" src="https://github.com/user-attachments/assets/b9512abf-12f7-42fe-a456-3e0f2ebb696b" />
 
-![Web Demo Preview 2] <img width="2048" height="1140" alt="image" src="https://github.com/user-attachments/assets/bc8b652b-1895-44d7-b7ca-6c187d86d78b" />
+<img width="2048" height="1140" alt="image" src="https://github.com/user-attachments/assets/bc8b652b-1895-44d7-b7ca-6c187d86d78b" />
 
 *A preview of our interactive web interface showing handwritten math being translated to LaTeX.*
 
