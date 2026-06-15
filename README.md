@@ -10,6 +10,7 @@
 - [Quick Start Guide](#quick-start-guide)
 - [Dataset Details](#dataset-details)
 - [Training and Evaluation](#training-and-evaluation)
+- [Weights & Biases Logging](#weights--biases-logging)
 - [Inference and Demo](#inference-and-demo)
 - [Development](#development)
 
@@ -144,6 +145,18 @@ Once trained, you can evaluate your model's performance on the test set using a 
 ```bash
 htt-run test --config configs/default.yaml --ckpt_path checkpoints/last.ckpt
 ```
+
+---
+
+## Weights & Biases Logging
+
+We use Weights & Biases (W&B) for experiment tracking, monitoring training metrics, and comparing different models.
+
+You can view our public project dashboard and training logs here:  
+👉 [Hand-to-TeX W&B Workspace](https://wandb.ai/dl-26-uniwroc-team1/hand-to-tex)
+
+![Weights & Biases Dashboard](blank-wandb.png)  
+*Placeholder for a screenshot of our W&B project dashboard showing training metrics.*
 
 ---
 
