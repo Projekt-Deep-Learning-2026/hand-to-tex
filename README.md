@@ -28,7 +28,11 @@ Our project covers the complete pipeline:
 - Training and evaluating deep learning models using PyTorch Lightning.
 - Running batch and interactive inferences.
 
-![Web Demo Interface](blank-demo.png)  
+
+![Web Demo Preview] <img width="2048" height="1140" alt="image" src="https://github.com/user-attachments/assets/b9512abf-12f7-42fe-a456-3e0f2ebb696b" />
+
+![Web Demo Preview 2] <img width="2048" height="1140" alt="image" src="https://github.com/user-attachments/assets/bc8b652b-1895-44d7-b7ca-6c187d86d78b" />
+
 *A preview of our interactive web interface showing handwritten math being translated to LaTeX.*
 
 ---
@@ -183,10 +187,6 @@ Want to draw your own math expressions? Launch the interactive canvas:
 ```bash
 htt-demo --ckpt data/models/last.ckpt --interactive
 ```
-
-![Interactive Canvas](blank-canvas.png)  
-*The interactive drawing canvas where you can write equations and see live predictions.*
-
 ---
 
 ## Development
