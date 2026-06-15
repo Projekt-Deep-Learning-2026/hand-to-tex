@@ -1054,3 +1054,20 @@ input[type="file"] {
         max-width: 300px;
     }
 }
+
+
+.button-group {
+    display: flex;
+    gap: 10px;
+}
+
+@media (max-width: 768px) {
+    .cta-group {
+        flex-direction: column;
+        align-items: center;
+    }
+    .cta-button {
+        width: 100%;
+        max-width: 300px;
+    }
+}
