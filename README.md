@@ -23,6 +23,13 @@ Welcome to **Hand-to-TeX**! This is a deep learning project focused on convertin
 **Try it out!** Check out our live web demo here:  
 👉 [Hand-to-TeX Web Demo](https://projekt-deep-learning-2026.github.io/hand-to-tex/)
 
+Our web interface allows you to experience the model entirely in your browser with zero setup. Features include:
+- **Whiteboard Canvas:** Draw math expressions naturally using a pen, stylus, or mouse.
+- **On-Device Inference:** The model runs entirely in your browser via ONNX Runtime, ensuring data privacy and low latency.
+- **Translate:** Use the select tool to mark your handwritten strokes and instantly convert them into rendered $\LaTeX$.
+- **In-Place Replacement:** Replace your handwritten ink directly with the generated $\LaTeX$ equations on the canvas.
+- **Edit & Refine:** Manually edit and fix any minor mistakes by fixing the generated $\LaTeX$.
+- **Import/Export:** Save your whiteboard projects as JSON files to continue later, or export them as clean PDFs.
 
 <img width="2048" height="1140" alt="image" src="https://github.com/user-attachments/assets/bc8b652b-1895-44d7-b7ca-6c187d86d78b" />
 <img width="2048" height="1140" alt="image" src="https://github.com/user-attachments/assets/b9512abf-12f7-42fe-a456-3e0f2ebb696b" />
