@@ -81,6 +81,20 @@ Activating the environment allows you to run commands without prefixing them wit
 
 ---
 
+## Core CLI Scripts
+
+This project provides several CLI entrypoints installed automatically via `uv`:
+
+- **`htt-init`**: One-command initialization. It downloads the raw data and preprocesses it.
+- **`htt-get-data`**: Downloads the raw MathWriting archives.
+- **`htt-preprocess`**: Converts raw InkML files into efficient `.pt` tensors for training.
+- **`htt-run`**: The main PyTorch Lightning CLI entrypoint used to route `fit` (training) and `test` (evaluation) commands.
+- **`htt-demo`**: Runs inference either on provided files/directories or via an interactive drawing canvas.
+
+*Tip: You can append `--help` to any of these commands for a full list of options.*
+
+---
+
 ## Dataset Details
 
 This project relies on robust handwritten mathematical data. We primarily use the **MathWriting** dataset.
