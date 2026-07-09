@@ -1,7 +1,9 @@
 from pathlib import Path
 from xml.etree import ElementTree
 
+import numpy as np
 import torch
+from matplotlib.axes import Axes
 from torch import Tensor
 
 from tex_gen.types import Features
@@ -39,6 +41,14 @@ def __trace_to_tensor(trace: Trace) -> Tensor:
     return features
 
 
+def __normalise_features(fts: Features):
+
+    xy_min, xy_max = fts[:, :2].min(), fts[:, :2].max()
+    dt_min, dt_max = fts[:, 2].min(), fts[:, 2].max()
+    fts[:, :2] = 2 * (fts[:, :2] - xy_min) / (xy_max - xy_min + EPS) - 1
+    fts[:, 2] = 2 * (fts[:, 2] - dt_min) / (dt_max - dt_min + EPS) - 1
+
+
 def extract_features(pth: Path) -> Features:
     with open(file=pth, encoding="utf-8") as file:
         root = ElementTree.fromstring(file.read())
@@ -51,8 +61,20 @@ def extract_features(pth: Path) -> Features:
                 if len(trace) > 0:
                     traces.append(trace)
     fts = torch.concat([__trace_to_tensor(trace=t) for t in traces])
-    normalised_fts = (
-        2 * (fts - fts.min(dim=0).values) / (fts.max(dim=0).values - fts.min(dim=0).values + EPS)
-        - 1
-    )
-    return normalised_fts
+    __normalise_features(fts=fts)
+    return fts
+
+
+def draw_features(fts: Features, ax: Axes) -> None:
+
+    fts_np = fts.detach().cpu().numpy()
+
+    x, y = fts_np[:, 0], fts_np[:, 1]
+    is_new = fts_np[:, 3]
+
+    starts = np.append(np.where(is_new > 0.0)[0], len(fts_np))
+    for a, b in zip(starts[:-1], starts[1:], strict=True):
+        ax.plot(x[a:b], y[a:b], color="black")
+
+    ax.set_aspect("equal", adjustable="box")
+    ax.invert_yaxis()
