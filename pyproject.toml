@@ -18,6 +18,7 @@ dependencies = [
     "onnx>=1.21.0",
     "onnxsim>=0.6.3",
     "onnxscript>=0.1.0",
+    "diffusers>=0.39.0",
 ]
 
 [project.optional-dependencies]

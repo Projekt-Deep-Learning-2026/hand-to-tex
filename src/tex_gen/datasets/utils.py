@@ -13,6 +13,7 @@ type Trace = list[tuple[float, float, float]]
 
 TAG_PREFIX = r"{http://www.w3.org/2003/InkML}"
 EPS = 1e-8
+NUM_FEATURES = 4
 
 
 def __trace_from_text(trace: str) -> Trace:
