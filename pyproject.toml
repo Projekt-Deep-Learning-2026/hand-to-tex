@@ -39,7 +39,7 @@ package-dir = { "" = "src", "scripts" = "scripts" }
 
 [tool.setuptools.packages.find]
 where = ["src", "."]
-include = ["hand_to_tex*", "scripts*"]
+include = ["hand_to_tex*", "scripts*", "tex_gen*"]
 
 [tool.uv]
 package = true
