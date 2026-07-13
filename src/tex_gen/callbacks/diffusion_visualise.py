@@ -58,11 +58,11 @@ class DiffusionVisualisationCallback(pl.Callback):
             disp.clear_output(wait=True)
         plt.show()
 
-    @torch.inference_mode()
     def on_train_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
 
         if trainer.current_epoch % self.every_n_epochs != 0:
             return
+
         pl_module.eval()
 
         lengths = torch.randint(
@@ -81,21 +81,13 @@ class DiffusionVisualisationCallback(pl.Callback):
 
         x = x * mask.unsqueeze(-1).float()
 
+        _, step_states = pl_module.generate(x, mask, show_steps=self.show_steps)  # type: ignore
+
         states: dict[int, list[Features]] = {}
-        for t in pl_module.noise_scheduler.timesteps:  # type: ignore
-            t_tensor = torch.tensor([t], device=pl_module.device)
-
-            residual = pl_module.model(x, t_tensor, src_key_padding_mask=~mask)  # type: ignore
-            x = pl_module.noise_scheduler.step(residual, t, x).prev_sample  # type: ignore
-
-            x = x * mask.unsqueeze(-1).float()
-
-            t_val = t.item()
-            if t_val in self.show_steps:
-                cpu_x = x.detach().cpu().clone()
-                fts = [cpu_x[i, : lengths[i].item()] for i in range(self.image_count)]
-
-                states[t_val] = fts
+        for t_val, step_x in step_states.items():
+            cpu_x = step_x.detach().cpu().clone()
+            fts = [cpu_x[i, : lengths[i].item()] for i in range(self.image_count)]
+            states[t_val] = fts
 
         fig = self._draw_samples(
             states=states,
