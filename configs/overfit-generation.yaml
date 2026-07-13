@@ -1,0 +1,44 @@
+seed_everything: 42
+
+trainer:
+  accelerator: auto
+  devices: 1
+  max_epochs: 1000
+  # KLUCZOWE: Nakazuje trenerowi używać tylko 1 batcha z danych treningowych
+  # i wyłącza całkowicie walidację.
+  limit_train_batches: 2
+  limit_val_batches: 0
+  num_sanity_val_steps: 0
+  log_every_n_steps: 1
+  enable_checkpointing: false
+  
+  callbacks:
+    - class_path: tex_gen.callbacks.DiffusionVisualisationCallback
+      init_args:
+        seq_len_range: [40, 150]
+        every_n_epochs: 50 # Podglądajmy, jak mu idzie zapamiętywanie co 100 epok
+        image_count: 4
+        show_steps: [499, 300, 150, 0]
+        show_forward: true
+
+model:
+  lr: 1e-4
+  backbone:
+    class_path: tex_gen.models.architectures.dit.DiT
+    init_args:
+        # Precyzyjnie zmapowane argumenty z Twojego __init__:
+        in_channels: 4       # Ponieważ Twoje wejście to: (x, y, dt, is_new_stroke)
+        hidden_dim: 512      # Relatywnie mały wymiar dla szybkiego testu overfittingu
+        depth: 6             # 4 bloki DiT w zupełności wystarczą
+        num_heads: 8         # 4 głowy atencji (128 / 4 = 32 wymiary na głowę)
+        max_seq_len: 250     # Musi pokrywać maksymalną długość w Twoim batchu
+  noise_scheduler:
+    class_path: diffusers.DDPMScheduler
+    init_args:
+      num_train_timesteps: 500
+data:
+  # Wskaż folder, w którym masz przetworzone pliki .pt (np. ten używany przez htt-init)
+  data_dir: "data/mathwriting-2024/symbols" 
+  batch_size: 8 # Nasze 8 próbek, które chcemy zapamiętać
+  num_workers: 1
+  val_split: 0.1
