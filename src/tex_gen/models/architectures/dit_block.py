@@ -13,7 +13,7 @@ class DiTBlock(nn.Module):
         self.norm2 = nn.LayerNorm(hidden_dim, elementwise_affine=False)
 
         self.attn = nn.MultiheadAttention(
-            embed_dim=self.hidden_size, num_heads=self.num_heads, batch_first=True
+            embed_dim=self.hidden_dim, num_heads=self.num_heads, batch_first=True
         )
 
         self.ffn = nn.Sequential(

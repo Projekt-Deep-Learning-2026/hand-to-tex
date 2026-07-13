@@ -24,10 +24,10 @@ class TimestepEmbedder(nn.Module):
         half_dim = self.freq_embed_size // 2
 
         emb = math.log(self.LOG_CONST) / (half_dim - 1)
-        emb = torch.exp(torch.arange(half_dim, device=t.device, dtype=torch.float32))
+        emb = torch.exp(torch.arange(half_dim, device=t.device, dtype=torch.float32) * -emb)
 
         emb = t.float().unsqueeze(1) * emb.unsqueeze(0)
 
-        emb = torch.cat([torch.sin(emb), torch.cos(emb)])
+        emb = torch.cat([torch.sin(emb), torch.cos(emb)], dim=-1)
 
         return self.mlp(emb)

@@ -23,4 +23,4 @@ class PaddedMSELoss(nn.Module):
 
         valid_elems = mask.sum() * inp.shape[-1]
 
-        return loss_masked / (valid_elems + self.eps)
+        return loss_masked.sum() / (valid_elems + self.eps)

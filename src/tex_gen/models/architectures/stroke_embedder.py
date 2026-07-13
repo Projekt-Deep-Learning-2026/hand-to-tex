@@ -7,12 +7,12 @@ from tex_gen.types import Features
 
 
 class StrokeEmbedder(nn.Module):
-    def __init__(self, in_channels: int, hidden_size: int, max_seq_len: int):
+    def __init__(self, in_channels: int, hidden_dim: int, max_seq_len: int):
         super().__init__()
 
-        self.input_proj = nn.Linear(in_features=in_channels, out_features=hidden_size)
+        self.input_proj = nn.Linear(in_features=in_channels, out_features=hidden_dim)
 
-        pe = self._generate_pe(max_len=max_seq_len, d_model=hidden_size)
+        pe = self._generate_pe(max_len=max_seq_len, d_model=hidden_dim)
         self.register_buffer("pe", pe, persistent=False)
 
     @staticmethod
@@ -28,7 +28,7 @@ class StrokeEmbedder(nn.Module):
 
     def forward(self, x: Features) -> torch.Tensor:
 
-        seq_len = x.size(0)
+        seq_len = x.size(1)
 
         x_proj = self.input_proj(x)
 

@@ -8,7 +8,7 @@ from tex_gen.types import Batch
 
 
 class TexGenLightningModule(pl.LightningModule):
-    def __init__(self, backbone: nn.Module, noise_scheduler: SchedulerMixin, lr: int):
+    def __init__(self, backbone: nn.Module, noise_scheduler: SchedulerMixin, lr: float):
         super().__init__()
 
         self.save_hyperparameters(ignore=["backbone", "noise_scheduler"])
