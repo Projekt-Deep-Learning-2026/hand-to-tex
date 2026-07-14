@@ -1,58 +1,11 @@
 seed_everything: 42
 
-# ============================================================================ #
-# ================================ TRAINER =================================== #
 trainer:
-  # Training device specification
   accelerator: auto
-  strategy: auto
-  devices: auto
-  num_nodes: 1
-  precision: bf16-mixed
-
-  # Logger configuration, currently using Weights&Biases
-  logger:
-  - class_path: lightning.pytorch.loggers.WandbLogger
-    init_args:
-      name: overfit-test
-      save_dir: .
-      project: tex-gen
-      log_model: false
-      offline: false
-
-  # ================================ CALLBACKS =============================== #
-  callbacks:
-  # LearningRateMonitor
-  - class_path: lightning.pytorch.callbacks.LearningRateMonitor
-    init_args:
-      logging_interval: step
-      log_momentum: false
-      log_weight_decay: false
-
-  # Progress bar - customize color, font
-  - class_path: lightning.pytorch.callbacks.RichProgressBar
-    init_args:
-      refresh_rate: 1
-      leave: false
-      theme:
-        description: ''
-        progress_bar: '#6206E0'
-        progress_bar_finished: '#6206E0'
-        progress_bar_pulse: '#6206E0'
-        batch_progress: ''
-        time: dim
-        processing_speed: dim underline
-        metrics: italic
-        metrics_text_delimiter: ' '
-        metrics_format: .3f
-
-  # ========================================================================== #
-  # Overfit-specific trainer parameters
-  fast_dev_run: false
+  devices: 1
   max_epochs: 1000
-  min_epochs: 50
   
-  # KEY SETTING FOR OVERFITTING
+  # PyTorch Lightning parameter to force exactly 1 batch over and over
   overfit_batches: 1
   
   # Disable validation during overfitting
@@ -61,50 +14,51 @@ trainer:
   
   log_every_n_steps: 1
   enable_checkpointing: false
-  enable_progress_bar: true
-  enable_model_summary: true
-  accumulate_grad_batches: 1
-  gradient_clip_val: 1.0
-  inference_mode: true
-  use_distributed_sampler: true
-  detect_anomaly: false
-  barebones: false
-  sync_batchnorm: false
+  
+  logger:
+    - class_path: lightning.pytorch.loggers.WandbLogger
+      init_args:
+        name: overfit-tex-gen
+        project: tex-gen
+        save_dir: .
+        offline: false
 
-# ============================================================================ #
-# =============================== MODEL ====================================== #
+  callbacks:
+    # Diffusion Visualisation that now also logs to WandB
+    - class_path: tex_gen.callbacks.DiffusionVisualisationCallback
+      init_args:
+        seq_len_range: [40, 150]
+        every_n_epochs: 50 
+        image_count: 4
+        show_steps: [499, 300, 150, 0]
+        show_forward: true
+        
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: step
+        
+    - class_path: lightning.pytorch.callbacks.RichProgressBar
+      init_args:
+        refresh_rate: 1
+        leave: false
+
 model:
-  vocab_path: &vocab_path data/assets/vocab.json
-  pretrained_model_path: null
-  max_generate_len: 150
-  
-  # Higher learning rate is typically used to overfit faster
   lr: 0.001
-  
-  # Disable regularisation
-  label_smoothing: 0.0
-  weight_decay: 0.0
-
-  model:
-    class_path: hand_to_tex.models.components.ExperimentalTransformerKVCacheDemo
+  backbone:
+    class_path: tex_gen.models.architectures.dit.DiT
     init_args:
-      in_channels: 12
-      d_model: 256
-      nhead: 8
-      num_encoder_layers: 6
-      num_decoder_layers: 6
-      dim_feedforward: 1024
-      # Disable dropout for overfitting
-      dropout: 0.0
+        in_channels: 4       
+        hidden_dim: 512      
+        depth: 6             
+        num_heads: 8         
+        max_seq_len: 250     
+  noise_scheduler:
+    class_path: diffusers.DDPMScheduler
+    init_args:
+      num_train_timesteps: 500
 
-# ============================================================================ #
-# ================================ DATA ====================================== #
 data:
-  root: data/sample
-  vocab_path: *vocab_path
-  processed: true
-  # Using a smaller batch size just for overfitting to a few samples
-  batch_size: 8
-  num_workers: 4
-  pin_memory: true
-  min_len: 7
+  data_dir: "data/mathwriting-2024/symbols" 
+  batch_size: 8 
+  num_workers: 1
+  val_split: 0.1
