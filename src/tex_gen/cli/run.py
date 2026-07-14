@@ -2,8 +2,6 @@ import torch
 from lightning.pytorch.cli import LightningCLI
 
 from tex_gen.datasets.datamodule import TexGenDataModule
-
-# Importy klas z Twojej paczki tex_gen
 from tex_gen.models import TexGenLightningModule
 
 
