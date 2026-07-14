@@ -46,7 +46,7 @@ class TexGenLightningModule(pl.LightningModule):
                 target = noise
             case "sample":
                 target = x
-            case "v prediction":
+            case "v_prediction":
                 target = self.noise_scheduler.get_velocity(x, noise, timesteps)  # type: ignore
             case _:
                 raise ValueError(
@@ -58,7 +58,7 @@ class TexGenLightningModule(pl.LightningModule):
     def configure_optimizers(self):  # type: ignore
         optimizer = torch.optim.AdamW(self.backbone.parameters(), lr=self.learning_rate)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, T_max=1000000, eta_min=1e-6
+            optimizer, T_max=int(self.trainer.estimated_stepping_batches), eta_min=1e-6
         )
         opt_config = {
             "optimizer": optimizer,

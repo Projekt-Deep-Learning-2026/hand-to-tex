@@ -35,6 +35,9 @@ class DiT(nn.Module):
         self.final_modulator = nn.Sequential(
             nn.SiLU(), nn.Linear(self.hidden_dim, 2 * self.hidden_dim)
         )
+        nn.init.zeros_(self.final_modulator[1].weight)  # type: ignore
+        nn.init.zeros_(self.final_modulator[1].bias)  # type: ignore
+
         self.output_proj = nn.Linear(self.hidden_dim, self.in_channels)
 
     def forward(self, x: Features, timesteps: torch.Tensor, padding_mask: torch.Tensor) -> Features:

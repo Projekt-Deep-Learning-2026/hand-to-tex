@@ -2,6 +2,8 @@ import IPython.display as disp
 import lightning.pytorch as pl
 import matplotlib.pyplot as plt
 import torch
+import wandb
+from lightning.pytorch.loggers import WandbLogger
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
@@ -53,10 +55,16 @@ class DiffusionVisualisationCallback(pl.Callback):
 
         return fig
 
-    def display(self, fig: Figure) -> None:
+    def display(self, trainer: pl.Trainer, fig: Figure, key: str) -> None:
         if self.clear_output:
             disp.clear_output(wait=True)
         plt.show()
+
+        if trainer.logger is not None:
+            if isinstance(trainer.logger, WandbLogger):
+                trainer.logger.experiment.log(
+                    {key: wandb.Image(fig), "global_step": trainer.global_step}
+                )
 
     def on_train_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
 
@@ -95,7 +103,7 @@ class DiffusionVisualisationCallback(pl.Callback):
             epoch=trainer.current_epoch,
             reverse_timesteps=True,
         )
-        self.display(fig=fig)
+        self.display(trainer, fig=fig, key="Generation_Samples")
 
         pl_module.train()
 
@@ -137,4 +145,4 @@ class DiffusionVisualisationCallback(pl.Callback):
             epoch=trainer.current_epoch,
             reverse_timesteps=False,
         )
-        self.display(fig=fig)
+        self.display(trainer, fig=fig, key="Forward_Diffusion")

@@ -19,7 +19,7 @@ NUM_FEATURES = 4
 def __trace_from_text(trace: str) -> Trace:
     points = []
     for point in trace.split(","):
-        x, y, t = point.split(" ")
+        x, y, t = point.split()
         points.append((float(x), float(y), float(t)))
     return points
 
