@@ -71,7 +71,6 @@ def draw_features(fts: Features, ax: Axes) -> None:
 
     fts_np = fts.detach().cpu().numpy()
 
-    # Features are now (dx, dy, dt, is_new), so cumsum recovers absolute positions
     dx, dy = fts_np[:, 0], fts_np[:, 1]
     x = np.cumsum(dx)
     y = np.cumsum(dy)
